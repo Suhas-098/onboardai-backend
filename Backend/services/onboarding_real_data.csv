@@ -1,0 +1,55 @@
+completion,delay_days,tasks_completed,time_spent,label
+94,1,8,16,On Track
+88,2,7,18,On Track
+91,0,9,15,On Track
+85,2,6,19,On Track
+97,0,10,14,On Track
+90,1,7,17,On Track
+83,2,6,20,On Track
+92,1,8,16,On Track
+89,2,7,18,On Track
+95,0,9,15,On Track
+
+76,3,6,21,At Risk
+72,4,5,22,At Risk
+68,5,5,23,At Risk
+64,4,4,24,At Risk
+70,3,6,21,At Risk
+55,6,4,25,At Risk
+60,5,4,23,At Risk
+58,6,3,26,At Risk
+73,3,5,22,At Risk
+65,5,4,24,At Risk
+
+48,7,3,27,Delayed
+42,8,3,28,Delayed
+39,9,2,29,Delayed
+35,10,2,30,Delayed
+28,11,1,31,Delayed
+22,12,1,32,Delayed
+18,13,1,33,Delayed
+30,10,2,30,Delayed
+25,11,1,31,Delayed
+33,9,2,29,Delayed
+
+87,2,7,18,On Track
+93,1,8,16,On Track
+81,3,6,20,At Risk
+67,5,4,24,At Risk
+52,7,3,26,Delayed
+46,8,3,27,Delayed
+38,9,2,29,Delayed
+90,1,7,17,On Track
+78,3,6,21,At Risk
+62,6,4,24,At Risk
+
+96,0,9,14,On Track
+84,2,6,19,On Track
+74,4,5,22,At Risk
+59,6,4,25,At Risk
+41,8,3,28,Delayed
+29,11,1,31,Delayed
+21,12,1,32,Delayed
+88,2,7,18,On Track
+69,5,5,23,At Risk
+36,9,2,29,Delayed

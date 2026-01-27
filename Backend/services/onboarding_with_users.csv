@@ -1,0 +1,51 @@
+name,email,completion,delay_days,tasks_completed,time_spent,label
+Angel Taylor,watsonmichael@example.org,94,1,8,16,On Track
+Abigail Terrell,zduke@example.org,88,2,7,18,On Track
+Robert Trevino,garrettdavid@example.net,91,0,9,15,On Track
+Christopher Arnold,xwillis@example.net,85,2,6,19,On Track
+Edwin Massey,tricia71@example.com,97,0,10,14,On Track
+Benjamin Camacho,marchernandez@example.net,90,1,7,17,On Track
+Rachel Nelson,janet39@example.org,83,2,6,20,On Track
+Andrea Schwartz,johnsondonald@example.net,92,1,8,16,On Track
+Larry Allison,adrian73@example.net,89,2,7,18,On Track
+Samuel Buck,cgomez@example.net,95,0,9,15,On Track
+Richard Webb,cherylreed@example.net,76,3,6,21,At Risk
+Jamie Hicks,hholt@example.com,72,4,5,22,At Risk
+Jeffrey Barker,rmedina@example.net,68,5,5,23,At Risk
+Hunter Phillips,nlittle@example.org,64,4,4,24,At Risk
+Earl Cruz,brittanyramos@example.net,70,3,6,21,At Risk
+Daniel Phelps,ijohnson@example.com,55,6,4,25,At Risk
+Crystal Griffin,kevinjenkins@example.com,60,5,4,23,At Risk
+Stacy Bowers,brandonhoffman@example.net,58,6,3,26,At Risk
+Dr. Joseph Hudson,perezrhonda@example.net,73,3,5,22,At Risk
+Dennis Clayton,justinsullivan@example.com,65,5,4,24,At Risk
+Jessica Smith,imiller@example.com,48,7,3,27,Delayed
+Natasha Benson,deborah36@example.net,42,8,3,28,Delayed
+William Jackson,theresa68@example.org,39,9,2,29,Delayed
+Julie Garcia,lawrencedarryl@example.com,35,10,2,30,Delayed
+Susan Bean,mjohnson@example.com,28,11,1,31,Delayed
+Chelsea Acosta,daniel07@example.com,22,12,1,32,Delayed
+John Campbell,stephaniescott@example.com,18,13,1,33,Delayed
+Brian Bolton MD,johnsonchad@example.net,30,10,2,30,Delayed
+Mary Lewis,nicholsonjennifer@example.org,25,11,1,31,Delayed
+Matthew Torres MD,caitlin40@example.net,33,9,2,29,Delayed
+Lisa Stanley,josephwilson@example.net,87,2,7,18,On Track
+Matthew Jenkins,zwilliams@example.net,93,1,8,16,On Track
+Peter Morris,johnsoncristina@example.com,81,3,6,20,At Risk
+Stephanie Choi,kholmes@example.com,67,5,4,24,At Risk
+Justin Miller,amy22@example.com,52,7,3,26,Delayed
+Nicholas Hall,msmith@example.com,46,8,3,27,Delayed
+Jacob Jefferson,estark@example.net,38,9,2,29,Delayed
+Ashley Beard,walkerkatherine@example.org,90,1,7,17,On Track
+Maureen Patterson,whebert@example.com,78,3,6,21,At Risk
+Johnny Rodriguez,scottgarcia@example.net,62,6,4,24,At Risk
+James Wagner,loganmariah@example.org,96,0,9,14,On Track
+Jasmine Spencer DDS,rachelstein@example.net,84,2,6,19,On Track
+Derrick Wilson,samuelbowman@example.org,74,4,5,22,At Risk
+Kimberly Jenkins,zchandler@example.com,59,6,4,25,At Risk
+David Smith,jbradley@example.com,41,8,3,28,Delayed
+Katelyn Flores,zgonzalez@example.net,29,11,1,31,Delayed
+Heather Fletcher,gardnerveronica@example.net,21,12,1,32,Delayed
+Breanna King,anthonyjenkins@example.com,88,2,7,18,On Track
+Lawrence Burke,julia22@example.com,69,5,5,23,At Risk
+Marcus Nolan,kchavez@example.net,36,9,2,29,Delayed

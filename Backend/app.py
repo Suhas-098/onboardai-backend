@@ -5,9 +5,6 @@ from routes.task_routes import task_routes
 from routes.progress_routes import progress_routes
 from routes.dashboard_routes import dashboard_routes
 from routes.ai_routes import ai_routes
-from routes.ai_dashboard_routes import ai_dashboard_routes
-from routes.ai_nudge_routes import ai_nudge_routes
-from routes.ai_explain_routes import ai_explain_routes
 
 app = Flask(__name__)
 
@@ -19,11 +16,8 @@ init_database(app)
 app.register_blueprint(user_routes, url_prefix="/api")
 app.register_blueprint(task_routes, url_prefix="/api")
 app.register_blueprint(progress_routes, url_prefix="/api")
-app.register_blueprint(dashboard_routes, url_prefix="/api")
+app.register_blueprint(dashboard_routes)
 app.register_blueprint(ai_routes, url_prefix="/api")
-app.register_blueprint(ai_dashboard_routes)
-app.register_blueprint(ai_nudge_routes)
-app.register_blueprint(ai_explain_routes)
 
 @app.route("/")
 def home():

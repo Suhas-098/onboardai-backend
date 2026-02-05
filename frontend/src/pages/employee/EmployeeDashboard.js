@@ -25,6 +25,32 @@ const TaskItem = ({ title, status, type, due }) => {
 
 const EmployeeDashboard = () => {
     const { user } = useAuth();
+    const [tasks, setTasks] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        if (user?.id) {
+            const fetchProgress = async () => {
+                try {
+                    // Assuming endpoints.progress.getByUser is defined, or direct fetch
+                    const response = await fetch(`/api/progress/user/${user.id}`);
+                    const data = await response.json();
+                    setTasks(data);
+                } catch (error) {
+                    console.error("Failed to load progress:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchProgress();
+        }
+    }, [user]);
+
+    const overallProgress = React.useMemo(() => {
+        if (!tasks.length) return 0;
+        const total = tasks.reduce((acc, curr) => acc + curr.completion, 0);
+        return Math.round(total / tasks.length);
+    }, [tasks]);
 
     return (
         <div className="space-y-8">
@@ -37,12 +63,12 @@ const EmployeeDashboard = () => {
                 <div className="flex items-center gap-4 bg-surface/50 border border-white/5 px-4 py-2 rounded-xl backdrop-blur-md">
                     <div className="text-right">
                         <p className="text-xs text-text-secondary">Overall Progress</p>
-                        <p className="text-xl font-bold text-primary">62%</p>
+                        <p className="text-xl font-bold text-primary">{overallProgress}%</p>
                     </div>
                     <div className="w-12 h-12 relative">
                         <svg className="w-full h-full transform -rotate-90">
                             <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-surface-light" />
-                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-primary" strokeDasharray="125.6" strokeDashoffset={125.6 * (1 - 0.62)} strokeLinecap="round" />
+                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-primary" strokeDasharray="125.6" strokeDashoffset={125.6 * (1 - overallProgress / 100)} strokeLinecap="round" />
                         </svg>
                     </div>
                 </div>
@@ -57,11 +83,21 @@ const EmployeeDashboard = () => {
                     </h3>
 
                     <div className="space-y-3">
-                        <TaskItem title="Sign Employment Contract" status="completed" type="Document" due="Done" />
-                        <TaskItem title="Setup Company Email & Slack" status="completed" type="IT Setup" due="Done" />
-                        <TaskItem title="Upload Photo ID" status="pending" type="Compliance" due="Today" />
-                        <TaskItem title="Security Awareness Training" status="pending" type="Training" due="Tomorrow" />
-                        <TaskItem title="Benefits Enrollment" status="pending" type="HR" due="Friday" />
+                        {loading ? (
+                            <div className="p-4 text-center text-text-secondary">Loading tasks...</div>
+                        ) : tasks.length === 0 ? (
+                            <div className="p-4 text-center text-text-secondary">No tasks assigned.</div>
+                        ) : (
+                            tasks.map((task) => (
+                                <TaskItem
+                                    key={task.id}
+                                    title={task.title}
+                                    status={task.status}
+                                    type={task.type}
+                                    due={task.due}
+                                />
+                            ))
+                        )}
                     </div>
 
                     <Card className="p-6 bg-gradient-to-r from-surface to-surface-light border-white/5">

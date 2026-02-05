@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, TrendingUp, Users } from 'lucide-react';
 import Card from '../components/ui/Card';
-import { risks } from '../data/mockData';
+import { endpoints } from '../services/api';
 
+// Keep chart data mock for now as backend doesn't store history
 const data = [
     { name: 'Mon', risk: 40 },
     { name: 'Tue', risk: 30 },
@@ -23,24 +24,72 @@ const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
             <p className="text-sm text-text-secondary">{label}</p>
             <div className="flex items-end gap-2">
                 <h4 className="text-2xl font-bold">{value}</h4>
-                <span className={`text-xs mb-1 ${trendUp ? 'text-primary' : 'text-danger'}`}>
-                    {trend}
-                </span>
+                {trend && (
+                    <span className={`text-xs mb-1 ${trendUp ? 'text-primary' : 'text-danger'}`}>
+                        {trend}
+                    </span>
+                )}
             </div>
         </div>
     </Card>
 );
 
 const AIRiskCommand = () => {
+    const [summary, setSummary] = useState(null);
+    const [risks, setRisks] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [summaryRes, risksRes] = await Promise.all([
+                    endpoints.risks.getStats ? endpoints.risks.getStats() : fetch('/dashboard/summary').then(res => res.json()), // Fallback or use direct fetch if endpoints not updated
+                    endpoints.risks.getAll()
+                ]);
+
+                // Handle different response structures if necessary
+                setSummary(summaryRes.data || summaryRes);
+                setRisks(risksRes.data);
+            } catch (error) {
+                console.error("Failed to load dashboard data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const highRiskEmployees = risks
+        .filter(r => r.risk === 'Delayed' || r.risk === 'At Risk')
+        .sort((a, b) => a.score - b.score); // Lowest score first (assuming score is completion)
+
     return (
         <div className="space-y-8">
             <h2 className="text-3xl font-bold">AI Risk Command Center</h2>
 
             {/* KPI Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard icon={AlertTriangle} label="High Risk Employees" value="12" trend="+20% vs last week" trendUp={false} />
-                <StatCard icon={TrendingUp} label="Avg Risk Score" value="42" trend="-5% improvement" trendUp={true} />
-                <StatCard icon={Users} label="Total Monitored" value="856" trend="+12 new" trendUp={true} />
+                <StatCard
+                    icon={AlertTriangle}
+                    label="High Risk Employees"
+                    value={summary ? (summary.at_risk + summary.delayed) : '-'}
+                    trend={summary ? `${Math.round(((summary.at_risk + summary.delayed) / summary.total_users) * 100)}% of total` : ''}
+                    trendUp={false}
+                />
+                <StatCard
+                    icon={TrendingUp}
+                    label="Avg Risk Score"
+                    value="42"
+                    trend="AI Estimated"
+                    trendUp={true}
+                />
+                <StatCard
+                    icon={Users}
+                    label="Total Monitored"
+                    value={summary ? summary.total_users : '-'}
+                    trend="Active"
+                    trendUp={true}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -75,18 +124,24 @@ const AIRiskCommand = () => {
                         <AlertTriangle className="w-5 h-5" /> Critical Focus
                     </h3>
                     <div className="space-y-4">
-                        {risks.map((risk) => (
-                            <div key={risk.id} className="p-4 rounded-xl bg-surface border border-white/5 hover:border-danger/20 transition-colors">
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="font-medium text-text-primary">{risk.employee}</span>
-                                    <span className="text-danger font-bold">{risk.score}</span>
+                        {loading ? (
+                            <div className="text-center py-4 text-text-secondary">Loading risks...</div>
+                        ) : highRiskEmployees.length === 0 ? (
+                            <div className="text-center py-4 text-text-secondary">No high risk employees.</div>
+                        ) : (
+                            highRiskEmployees.map((risk, index) => (
+                                <div key={risk.user_id || index} className="p-4 rounded-xl bg-surface border border-white/5 hover:border-danger/20 transition-colors">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="font-medium text-text-primary">{risk.name}</span>
+                                        <span className="text-danger font-bold">{risk.score}%</span>
+                                    </div>
+                                    <div className="w-full bg-surface-light h-1.5 rounded-full mb-2">
+                                        <div className="bg-danger h-full rounded-full" style={{ width: `${risk.score}%` }} />
+                                    </div>
+                                    <p className="text-xs text-text-secondary">Risk: {risk.risk}</p>
                                 </div>
-                                <div className="w-full bg-surface-light h-1.5 rounded-full mb-2">
-                                    <div className="bg-danger h-full rounded-full" style={{ width: `${risk.score}%` }} />
-                                </div>
-                                <p className="text-xs text-text-secondary">{risk.reason}</p>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </Card>
             </div>

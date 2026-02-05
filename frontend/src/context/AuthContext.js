@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -18,18 +19,27 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
-    const login = (role) => {
-        const mockUser = {
-            id: 1,
-            name: role === 'hr' ? 'Alex HR' : 'Sam Employee',
-            email: role === 'hr' ? 'alex@company.com' : 'sam@company.com',
-            role: role, // 'hr' or 'employee'
-            avatar: role === 'hr' ? 'AH' : 'SE'
-        };
+    const login = async (email, password) => {
+        try {
+            // Call real backend API
+            const response = await api.post('/auth/login', { email, password });
 
-        setUser(mockUser);
-        localStorage.setItem('onboardai_user', JSON.stringify(mockUser));
-        return mockUser; // Return for navigation logic
+            const userData = {
+                id: response.data.user_id,
+                name: response.data.name,
+                email: email,
+                role: response.data.role,
+                avatar: response.data.name.split(' ').map(n => n[0]).join('').toUpperCase()
+            };
+
+            setUser(userData);
+            localStorage.setItem('onboardai_user', JSON.stringify(userData));
+
+            return userData; // Return for navigation logic
+        } catch (error) {
+            console.error('Login failed:', error);
+            throw new Error('Invalid email or password');
+        }
     };
 
     const logout = () => {

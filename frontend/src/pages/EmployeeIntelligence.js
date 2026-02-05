@@ -1,22 +1,57 @@
-import { useState } from 'react';
-import { Search, Filter, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Filter, MoreHorizontal, Loader2 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
-import { employees } from '../data/mockData';
+import { endpoints } from '../services/api';
 
 const EmployeeIntelligence = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [employees, setEmployees] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await endpoints.employees.getAll();
+                setEmployees(response.data);
+            } catch (err) {
+                setError('Failed to load employee intelligence data.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredEmployees = employees.filter(emp =>
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    if (loading) {
+        return (
+            <div className="flex h-96 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex h-96 items-center justify-center text-danger">
+                <p>{error}</p>
+            </div>
+        );
+    }
+
     const getRiskVariant = (risk) => {
+        if (!risk) return 'success';
         switch (risk.toLowerCase()) {
-            case 'high': return 'danger';
-            case 'medium': return 'warning';
+            case 'delayed': return 'danger';
+            case 'at risk': return 'warning';
             default: return 'success';
         }
     };

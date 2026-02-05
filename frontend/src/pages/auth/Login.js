@@ -1,31 +1,36 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { User, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 
 const Login = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
-    const [role, setRole] = useState('employee'); // 'employee' | 'hr'
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
 
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const user = await login(email, password);
 
-        const user = login(role);
-        setLoading(false);
-
-        // Redirect based on role
-        if (user.role === 'hr') {
-            navigate('/dashboard');
-        } else {
-            navigate('/my-dashboard'); // We will build this next
+            // Redirect based on role
+            if (user.role === 'hr' || user.role === 'admin') {
+                navigate('/dashboard');
+            } else {
+                navigate('/my-dashboard');
+            }
+        } catch (err) {
+            setError(err.message || 'Login failed');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -44,35 +49,22 @@ const Login = () => {
                     <p className="text-text-secondary text-sm mt-2">Sign in to your enterprise account</p>
                 </div>
 
-                {/* Role Toggle */}
-                <div className="flex bg-surface-light p-1 rounded-lg mb-8 border border-white/5">
-                    <button
-                        onClick={() => setRole('employee')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${role === 'employee'
-                            ? 'bg-surface shadow-sm text-primary border border-white/5'
-                            : 'text-text-secondary hover:text-text-primary'
-                            }`}
-                    >
-                        <User className="w-4 h-4" /> Employee
-                    </button>
-                    <button
-                        onClick={() => setRole('hr')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${role === 'hr'
-                            ? 'bg-surface shadow-sm text-accent border border-white/5'
-                            : 'text-text-secondary hover:text-text-primary'
-                            }`}
-                    >
-                        <ShieldCheck className="w-4 h-4" /> HR Admin
-                    </button>
-                </div>
+                {error && (
+                    <div className="mb-4 p-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
+                        {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
                         <label className="block text-xs font-medium text-text-secondary mb-1.5 ml-1">Work Email</label>
                         <input
                             type="email"
-                            defaultValue={role === 'hr' ? 'alex@company.com' : 'sam@employee.com'}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-3 text-text-primary focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-text-secondary/30"
+                            placeholder="you@company.com"
                         />
                     </div>
 
@@ -83,8 +75,11 @@ const Login = () => {
                         </div>
                         <input
                             type="password"
-                            defaultValue="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
                             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-3 text-text-primary focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-text-secondary/30"
+                            placeholder="••••••••"
                         />
                     </div>
 
@@ -92,7 +87,7 @@ const Login = () => {
                         type="submit"
                         className="w-full mt-2"
                         size="lg"
-                        variant={role === 'hr' ? 'glow' : 'primary'}
+                        variant="glow"
                         isLoading={loading}
                     >
                         {loading ? 'Signing in...' : 'Sign In'}

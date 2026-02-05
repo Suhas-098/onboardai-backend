@@ -46,10 +46,10 @@ const LandingPage = () => {
                             size="lg"
                             variant="glow"
                             className="group"
-                            onClick={() => navigate('/demo', { state: { from: { pathname: '/' } } })}
+                            onClick={() => navigate('/login')}
                         >
                             <Zap className="w-5 h-5 mr-2 fill-current" />
-                            Launch Executive Demo
+                            Get Started
                             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
 
@@ -137,7 +137,7 @@ const LandingPage = () => {
                                 ))}
                             </div>
 
-                            <Button variant="secondary" className="mt-4" onClick={() => navigate('/docs')}>Read Documentation</Button>
+                            <Button variant="secondary" className="mt-4" onClick={() => navigate('/login')}>Get Started Now</Button>
                         </div>
 
                         <div className="relative">

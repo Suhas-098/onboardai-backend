@@ -15,16 +15,20 @@ import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
 
-    const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }, // Changed from '/' to '/dashboard' to avoid conflict with Landing
-        { icon: Users, label: 'Employees', path: '/employees' },
-        { icon: ShieldAlert, label: 'Risk Command', path: '/risk' },
-        { icon: Activity, label: 'Insights', path: '/insights' },
-        { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: UserCog, label: 'Manage', path: '/manage' },
+    const allNavItems = [
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'hr', 'employee'] },
+        { icon: Users, label: 'Employees', path: '/employees', roles: ['admin', 'hr'] },
+        { icon: Activity, label: 'Insights', path: '/insights', roles: ['admin', 'hr'] },
+        { icon: FileText, label: 'Reports', path: '/reports', roles: ['admin', 'hr'] },
+        { icon: UserCog, label: 'Manage', path: '/manage', roles: ['admin', 'hr'] },
     ];
+
+    // Filter nav items based on user role
+    const navItems = allNavItems.filter(item =>
+        !item.roles || item.roles.includes(user?.role)
+    );
 
     const handleLogout = () => {
         logout();

@@ -7,14 +7,10 @@ import Signup from './pages/auth/Signup';
 import EmployeeIntelligence from './pages/EmployeeIntelligence';
 import AIRiskCommand from './pages/AIRiskCommand';
 import AlertsInsights from './pages/AlertsInsights';
-import ExecutiveDemo from './pages/ExecutiveDemo';
+import Reports from './pages/Reports';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import EmployeeManagement from './pages/EmployeeManagement';
 import AppLayout from './components/layout/AppLayout';
-import DocsPage from './pages/DocsPage';
-
-// Mock Placeholders
-const Reports = () => <div className="text-center py-20"><h2 className="text-2xl font-bold mb-2">Enterprise Reports</h2><p className="text-text-secondary">Advanced CSV/PDF exports are available in the production build.</p></div>;
-const EmployeeManagement = () => <div className="text-center py-20"><h2 className="text-2xl font-bold mb-2">Employee Directory</h2><p className="text-text-secondary">Manage access, roles, and permissions.</p></div>;
 
 const DashboardLayout = ({ children }) => (
   <AppLayout>
@@ -32,8 +28,6 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/demo" element={<ExecutiveDemo />} />
-            <Route path="/docs" element={<DocsPage />} />
 
             {/* Employee Routes */}
             <Route path="/my-dashboard" element={
@@ -42,16 +36,16 @@ export default function App() {
               </DashboardLayout>
             } />
 
-            {/* HR Routes */}
-            <Route path="/employees" element={
+            {/* HR/Admin Routes */}
+            <Route path="/dashboard" element={
               <DashboardLayout>
-                <EmployeeIntelligence />
+                <AIRiskCommand />
               </DashboardLayout>
             } />
 
-            <Route path="/risk" element={
+            <Route path="/employees" element={
               <DashboardLayout>
-                <AIRiskCommand />
+                <EmployeeIntelligence />
               </DashboardLayout>
             } />
 
@@ -74,7 +68,7 @@ export default function App() {
             } />
 
             {/* Default Redirects */}
-            <Route path="/dashboard" element={<Navigate to="/risk" replace />} />
+            <Route path="/risk" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>

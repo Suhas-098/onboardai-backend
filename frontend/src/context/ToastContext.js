@@ -9,9 +9,17 @@ export const useToast = () => useContext(ToastContext);
 export const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
 
-    const addToast = useCallback(({ title, description, variant = 'default', duration = 5000 }) => {
+    const showToast = useCallback((msg, variant = 'default', duration = 5000) => {
         const id = Date.now();
-        setToasts(prev => [...prev, { id, title, description, variant, duration }]);
+        let toastObj = { id, variant, duration };
+
+        if (typeof msg === 'string') {
+            toastObj.title = msg;
+        } else {
+            toastObj = { ...toastObj, ...msg };
+        }
+
+        setToasts(prev => [...prev, toastObj]);
 
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
@@ -23,7 +31,7 @@ export const ToastProvider = ({ children }) => {
     };
 
     return (
-        <ToastContext.Provider value={{ addToast }}>
+        <ToastContext.Provider value={{ showToast }}>
             {children}
             <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
                 {toasts.map((toast) => (

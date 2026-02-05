@@ -34,6 +34,8 @@ export const endpoints = {
     employees: {
         getAll: () => api.get('/employees'),
         getOne: (id) => api.get(`/employees/${id}`),
+        getTasks: (id) => api.get(`/employees/${id}/tasks`),
+        getActivity: (id) => api.get(`/employees/${id}/activity`),
     },
     risks: {
         getAll: () => api.get('/risks'),
@@ -41,9 +43,24 @@ export const endpoints = {
     },
     alerts: {
         getAll: () => api.get('/alerts'),
+        create: (data) => api.post('/alerts', data),
     },
     progress: {
         getByUser: (userId) => api.get(`/progress/user/${userId}`),
+    },
+    tasks: {
+        complete: (taskId) => api.post(`/tasks/${taskId}/complete`),
+        assign: (data) => api.post(`/tasks/assign`, data),
+        getMessages: (taskId) => api.get(`/tasks/${taskId}/messages`),
+        postMessage: (taskId, data) => api.post(`/tasks/${taskId}/messages`, data),
+    },
+    notifications: {
+        getAll: (userId) => api.get(`/notifications?user_id=${userId}`),
+        markRead: (id) => api.put(`/notifications/${id}/read`),
+        create: (data) => api.post('/notifications', data),
+    },
+    search: {
+        query: (scope, query, userId) => api.get(`/search?scope=${scope}&query=${query}&user_id=${userId}`),
     }
 };
 

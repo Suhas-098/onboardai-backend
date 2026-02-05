@@ -1,23 +1,56 @@
-import React from 'react';
-import { CheckCircle2, Circle, FileText, PlayCircle, Upload, Award } from 'lucide-react';
+import {
+    CheckCircle,
+    Clock,
+    FileText,
+    PlayCircle,
+    AlertTriangle,
+    Upload,
+    Award
+} from 'lucide-react';
+import { endpoints } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
-import { useAuth } from '../../context/AuthContext';
+import { useState, useEffect } from 'react';
 
-const TaskItem = ({ title, status, type, due }) => {
-    const Icon = status === 'completed' ? CheckCircle2 : Circle;
+const TaskItem = ({ task, onComplete, alerts = [] }) => {
+    // Check if there is a warning/critical alert relevant to this task
+    const relatedAlert = alerts.find(a =>
+        (a.type === 'Critical' || a.type === 'Warning') &&
+        a.message.toLowerCase().includes(task.name.toLowerCase())
+    );
+
+    const isCompleted = task.status === 'Completed';
+    // Use dynamic icon logic
+    const Icon = isCompleted ? CheckCircle : (relatedAlert ? AlertTriangle : FileText);
+
     return (
-        <div className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${status === 'completed' ? 'bg-primary/5 border-primary/20' : 'bg-surface border-white/5 hover:bg-surface/80'}`}>
+        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:bg-white/5 group ${relatedAlert && !isCompleted ? 'border-warning/50 bg-warning/5' : 'bg-surface border-white/5'
+            }`}>
             <div className="flex items-center gap-4">
-                <Icon className={`w-5 h-5 ${status === 'completed' ? 'text-primary' : 'text-text-secondary'}`} />
+                <div className={`p-2 rounded-lg ${isCompleted ? 'bg-success/20 text-success' :
+                    relatedAlert ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary'
+                    }`}>
+                    <Icon className="w-5 h-5" />
+                </div>
                 <div>
-                    <h4 className={`font-medium ${status === 'completed' ? 'text-text-primary line-through opacity-50' : 'text-text-primary'}`}>{title}</h4>
-                    <p className="text-xs text-text-secondary capitalize">{type} • Due {due}</p>
+                    <h4 className={`font-medium ${isCompleted ? 'text-text-primary line-through opacity-50' : 'text-text-primary'}`}>
+                        {task.name}
+                    </h4>
+                    <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
+                        <span className="capitalize">{task.type || 'Standard'}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Due {task.dueDate}</span>
+                    </div>
+                    {relatedAlert && !isCompleted && (
+                        <div className="mt-2 text-xs text-warning font-medium flex items-center gap-1">
+                            ⚠️ HR: {relatedAlert.message}
+                        </div>
+                    )}
                 </div>
             </div>
-            {status !== 'completed' && (
-                <Button size="sm" variant="secondary">Start</Button>
+            {!isCompleted && (
+                <Button size="sm" variant="secondary" onClick={() => onComplete(task.id)}>Mark Complete</Button>
             )}
         </div>
     );
@@ -25,57 +58,69 @@ const TaskItem = ({ title, status, type, due }) => {
 
 const EmployeeDashboard = () => {
     const { user } = useAuth();
-    const [tasks, setTasks] = React.useState([]);
-    const [loading, setLoading] = React.useState(true);
+    const [tasks, setTasks] = useState([]);
+    const [alerts, setAlerts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [overallProgress, setOverallProgress] = useState(0);
 
-    React.useEffect(() => {
-        if (user?.id) {
-            const fetchProgress = async () => {
-                try {
-                    // Assuming endpoints.progress.getByUser is defined, or direct fetch
-                    const response = await fetch(`/api/progress/user/${user.id}`);
-                    const data = await response.json();
-                    setTasks(data);
-                } catch (error) {
-                    console.error("Failed to load progress:", error);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchProgress();
+    useEffect(() => {
+        const loadData = async () => {
+            if (!user?.id) return;
+            try {
+                const [tasksRes, alertsRes] = await Promise.all([
+                    endpoints.employees.getTasks(user.id),
+                    endpoints.alerts.getAll() // Assuming this returns relevant alerts
+                ]);
+
+                setTasks(tasksRes.data);
+                setAlerts(alertsRes.data);
+
+                // Calc progress based on tasks
+                const completed = tasksRes.data.filter(t => t.status === 'Completed').length;
+                const total = tasksRes.data.length;
+                setOverallProgress(total > 0 ? Math.round((completed / total) * 100) : 0);
+
+            } catch (err) {
+                console.error("Dashboard load failed", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
+    }, [user?.id]);
+
+    const handleCompleteTask = async (taskId) => {
+        try {
+            await endpoints.tasks.complete(taskId);
+            // Refresh tasks
+            const res = await endpoints.employees.getTasks(user.id);
+            setTasks(res.data);
+
+            // Re-calc progress
+            const completed = res.data.filter(t => t.status === 'Completed').length;
+            const total = res.data.length;
+            setOverallProgress(total > 0 ? Math.round((completed / total) * 100) : 0);
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to complete task");
         }
-    }, [user]);
+    };
 
-    const overallProgress = React.useMemo(() => {
-        if (!tasks.length) return 0;
-        const total = tasks.reduce((acc, curr) => acc + curr.completion, 0);
-        return Math.round(total / tasks.length);
-    }, [tasks]);
+    if (loading) return <div className="p-8 text-center text-text-secondary">Loading your workspace...</div>;
 
     return (
         <div className="space-y-8">
-            {/* Employee Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">Welcome back, {user?.name.split(' ')[0]}!</h1>
-                    <p className="text-text-secondary mt-1">You are on Day 5 of your onboarding journey.</p>
-                </div>
-                <div className="flex items-center gap-4 bg-surface/50 border border-white/5 px-4 py-2 rounded-xl backdrop-blur-md">
-                    <div className="text-right">
-                        <p className="text-xs text-text-secondary">Overall Progress</p>
-                        <p className="text-xl font-bold text-primary">{overallProgress}%</p>
-                    </div>
-                    <div className="w-12 h-12 relative">
-                        <svg className="w-full h-full transform -rotate-90">
-                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-surface-light" />
-                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-primary" strokeDasharray="125.6" strokeDashoffset={125.6 * (1 - overallProgress / 100)} strokeLinecap="round" />
-                        </svg>
-                    </div>
-                </div>
+            {/* Header */}
+            <div>
+                <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    Welcome back, {user?.name.split(' ')[0]}! 👋
+                </h2>
+                <p className="text-text-secondary mt-1">Here is your onboarding progress for today.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Task List */}
+                {/* Left Column: Tasks */}
                 <div className="lg:col-span-2 space-y-6">
                     <h3 className="text-xl font-semibold flex items-center gap-2">
                         <FileText className="w-5 h-5 text-primary" />
@@ -91,30 +136,18 @@ const EmployeeDashboard = () => {
                             tasks.map((task) => (
                                 <TaskItem
                                     key={task.id}
-                                    title={task.title}
-                                    status={task.status}
-                                    type={task.type}
-                                    due={task.due}
+                                    task={task}
+                                    onComplete={handleCompleteTask}
+                                    alerts={alerts}
                                 />
                             ))
                         )}
                     </div>
-
-                    <Card className="p-6 bg-gradient-to-r from-surface to-surface-light border-white/5">
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-primary/10 rounded-lg text-primary">
-                                <Award className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-lg">Keep it up!</h4>
-                                <p className="text-text-secondary text-sm mt-1 mb-4">You're moving 15% faster than the average for your role.</p>
-                            </div>
-                        </div>
-                    </Card>
                 </div>
 
-                {/* Sidebar Widgets */}
+                {/* Right Column: Widgets (Strict Order: Upload -> Video -> Recommended) */}
                 <div className="space-y-6">
+                    {/* 1. Quick Upload */}
                     <Card>
                         <h3 className="font-semibold mb-4 flex items-center gap-2">
                             <Upload className="w-4 h-4" /> Quick Upload
@@ -126,20 +159,42 @@ const EmployeeDashboard = () => {
                         </div>
                     </Card>
 
+                    {/* 2. Video Training Player (New) */}
                     <Card>
                         <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <PlayCircle className="w-4 h-4" /> Recommended Training
+                            <PlayCircle className="w-4 h-4 text-primary" /> Onboarding Training
                         </h3>
-                        <div className="space-y-4">
-                            <div className="group cursor-pointer">
-                                <div className="aspect-video bg-surface-light rounded-lg relative overflow-hidden mb-2">
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition-colors">
-                                        <PlayCircle className="w-8 h-8 text-white opacity-80 group-hover:scale-110 transition-transform" />
-                                    </div>
-                                </div>
-                                <p className="text-sm font-medium">Company Culture 101</p>
-                                <p className="text-xs text-text-secondary">12 mins</p>
+                        <div className="aspect-video bg-black rounded-lg overflow-hidden relative group cursor-pointer">
+                            {/* Placeholder for Video Player */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-all">
+                                <PlayCircle className="w-12 h-12 text-white opacity-80 group-hover:scale-110 transition-transform" />
                             </div>
+                            <img
+                                src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600&auto=format&fit=crop"
+                                alt="Training Video"
+                                className="w-full h-full object-cover opacity-60"
+                            />
+                            <div className="absolute bottom-2 left-2 right-2">
+                                <p className="text-white text-sm font-medium drop-shadow-md">Welcome to the Team</p>
+                                <p className="text-white/80 text-xs">5:24</p>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* 3. Recommended Training */}
+                    <Card>
+                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                            <Award className="w-4 h-4" /> Recommended Training
+                        </h3>
+                        <div className="space-y-3">
+                            {['Company Culture 101', 'Cybersecurity Basics', 'IT Setup Guide'].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-surface-light hover:bg-white/5 cursor-pointer transition-colors group">
+                                    <div className="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                        <PlayCircle className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-sm font-medium">{item}</span>
+                                </div>
+                            ))}
                         </div>
                     </Card>
                 </div>

@@ -9,4 +9,3 @@ def init_database(app):
         from models.progress import Progress
         
         db.create_all()
-        print("✅ Database tables created")

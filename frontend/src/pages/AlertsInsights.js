@@ -1,86 +1,203 @@
 import { useState, useEffect } from 'react';
-import { Bell, Info, ShieldAlert, CheckCircle, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Info, ShieldAlert, CheckCircle, Loader2, Lightbulb, X, ArrowRight } from 'lucide-react';
 import Card from '../components/ui/Card';
 import { endpoints } from '../services/api';
+import api from '../services/api'; // Use the raw api instance if endpoints doesn't have the specific route
+
+const ActionModal = ({ isOpen, onClose, employee }) => {
+    if (!isOpen || !employee) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-surface rounded-2xl border border-white/10 max-w-lg w-full p-6 shadow-2xl relative">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-text-secondary hover:text-white transition-colors"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+
+                <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+                    <Lightbulb className="w-6 h-6 text-primary" />
+                    Recommended Actions
+                </h2>
+                <p className="text-text-secondary mb-6">AI-generated recommendations for {employee.name}</p>
+
+                <div className="space-y-4">
+                    {employee.recommended_actions && employee.recommended_actions.length > 0 ? (
+                        employee.recommended_actions.map((action, idx) => (
+                            <div key={idx} className="flex gap-3 p-3 rounded-xl bg-white/5 border border-white/5 items-start">
+                                <div className="mt-1 bg-primary/20 p-1 rounded-full text-primary">
+                                    <ArrowRight className="w-3 h-3" />
+                                </div>
+                                <span className="text-text-primary">{action}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-text-secondary italic">No specific actions recommended at this time.</p>
+                    )}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const AlertsInsights = () => {
-    const [alerts, setAlerts] = useState([]);
+    const navigate = useNavigate();
+    const [risks, setRisks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
 
     useEffect(() => {
-        const fetchAlerts = async () => {
+        const fetchData = async () => {
             try {
-                const response = await endpoints.alerts.getAll();
-                setAlerts(response.data);
+                // Fetching from the new risks endpoint we verified
+                const response = await api.get('/risks');
+                setRisks(response.data);
             } catch (error) {
-                console.error("Failed to load alerts:", error);
+                console.error("Failed to load risks:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchAlerts();
+        fetchData();
     }, []);
-    const getIcon = (level) => {
-        switch (level) {
-            case 'Critical': return ShieldAlert;
-            case 'Warning': return Bell;
-            case 'Success': return CheckCircle;
-            default: return Info;
-        }
-    };
 
-    const getColor = (level) => {
-        switch (level) {
-            case 'Critical': return 'text-danger';
-            case 'Warning': return 'text-accent';
-            case 'Success': return 'text-primary';
-            default: return 'text-secondary';
-        }
-    };
+    const alerts = risks.filter(r => r.risk === 'Critical' || r.risk === 'Warning');
+    const insights = risks.filter(r => r.prediction && r.prediction.includes('AI Prediction')); // Basic filter, can be refined
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-12">
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold">Alerts & Insights</h2>
-                <div className="text-sm text-text-secondary">Updating live...</div>
+                <div>
+                    <h2 className="text-3xl font-bold">Alerts & Insights</h2>
+                    <p className="text-text-secondary mt-1">AI-driven real-time monitoring and predictions</p>
+                </div>
+                <div className="text-sm text-text-secondary flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    Live Updates
+                </div>
             </div>
 
-            <div className="space-y-4">
-                {loading ? (
-                    <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
-                ) : alerts.length === 0 ? (
-                    <div className="text-center p-8 text-text-secondary">No alerts at this time.</div>
-                ) : (
-                    alerts.map((alert) => {
-                        const Icon = getIcon(alert.level);
-                        const colorClass = getColor(alert.level);
+            {loading ? (
+                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>
+            ) : (
+                <>
+                    {/* ALERTS SECTION */}
+                    <section className="space-y-6">
+                        <h3 className="text-xl font-semibold flex items-center gap-2 text-danger">
+                            <ShieldAlert className="w-5 h-5" />
+                            Active Alerts
+                        </h3>
 
-                        return (
-                            <Card key={alert.id} className="flex gap-4 items-start hover:bg-surface/80">
-                                <div className={`p-2 rounded-lg bg-surface-light border border-white/5 ${colorClass}`}>
-                                    <Icon className="w-6 h-6" />
+                        <div className="space-y-4">
+                            {alerts.length === 0 ? (
+                                <div className="text-text-secondary p-4 border border-white/5 rounded-xl bg-surface-light/50">
+                                    No critical alerts at this moment.
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className={`font-semibold ${colorClass}`}>{alert.title}</h3>
-                                        <span className="text-xs text-text-secondary">{alert.time}</span>
-                                    </div>
-                                    <p className="text-text-secondary mt-1 text-sm leading-relaxed">{alert.desc}</p>
+                            ) : (
+                                alerts.map((item) => (
+                                    <Card key={item.user_id} className="flex gap-5 items-start border-l-4 border-l-danger hover:transform hover:translate-x-1 transition-all duration-300">
+                                        <div className="p-3 rounded-xl bg-danger/10 text-danger shrink-0">
+                                            <ShieldAlert className="w-6 h-6" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-white">{item.risk_message}</h4>
+                                                    <p className="text-text-secondary mt-1">
+                                                        Employee <span className="text-white font-medium">{item.name}</span> is at <span className="text-danger font-medium">{item.risk} Risk</span> level.
+                                                    </p>
+                                                </div>
+                                                <span className="text-xs font-mono text-text-secondary bg-white/5 px-2 py-1 rounded">
+                                                    Score: {item.score}%
+                                                </span>
+                                            </div>
 
-                                    <div className="mt-3 flex gap-2">
-                                        <button className="text-xs font-medium px-3 py-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/5 transition-colors">
-                                            View Details
-                                        </button>
-                                        <button className="text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors">
-                                            Take Action
-                                        </button>
+                                            <div className="mt-4 flex gap-3">
+                                                <button
+                                                    onClick={() => navigate(`/employees/${item.user_id}`)}
+                                                    className="text-sm font-medium px-4 py-2 rounded-lg bg-surface border border-white/10 hover:bg-white/5 transition-colors"
+                                                >
+                                                    View Details
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedEmployee(item)}
+                                                    className="text-sm font-medium px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 transition-colors"
+                                                >
+                                                    Take Action
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+                    </section>
+
+                    {/* INSIGHTS SECTION */}
+                    <section className="space-y-6">
+                        <h3 className="text-xl font-semibold flex items-center gap-2 text-primary">
+                            <Lightbulb className="w-5 h-5" />
+                            AI Insights
+                        </h3>
+
+                        <div className="space-y-4">
+                            {insights.map((item) => (
+                                <Card key={item.user_id} className="flex gap-5 items-start border-l-4 border-l-primary hover:transform hover:translate-x-1 transition-all duration-300">
+                                    <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+                                        <Lightbulb className="w-6 h-6" />
                                     </div>
-                                </div>
-                            </Card>
-                        );
-                    })
-                )}
-            </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-bold text-lg text-white">Prediction Analysis</h4>
+                                                <p className="text-text-secondary mt-1 text-lg italic">
+                                                    "{item.prediction}"
+                                                </p>
+                                                <p className="text-sm text-text-secondary mt-2">
+                                                    Insight for <span className="text-white">{item.name}</span> based on current trajectory.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 flex gap-3">
+                                            <button
+                                                onClick={() => navigate(`/employees/${item.user_id}`)}
+                                                className="text-sm font-medium px-4 py-2 rounded-lg bg-surface border border-white/10 hover:bg-white/5 transition-colors"
+                                            >
+                                                View Details
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedEmployee(item)}
+                                                className="text-sm font-medium px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                                            >
+                                                View Recommendations
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
+                </>
+            )}
+
+            <ActionModal
+                isOpen={!!selectedEmployee}
+                onClose={() => setSelectedEmployee(null)}
+                employee={selectedEmployee}
+            />
         </div>
     );
 };

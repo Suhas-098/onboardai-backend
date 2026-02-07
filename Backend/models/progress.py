@@ -7,3 +7,4 @@ class Progress(db.Model):
     completion = db.Column(db.Integer)  # 0-100
     delay_days = db.Column(db.Integer, default=0)
     time_spent = db.Column(db.Integer, default=0)  # minutes
+    completed_at = db.Column(db.DateTime, nullable=True)

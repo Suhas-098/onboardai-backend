@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -8,26 +8,36 @@ import {
     Settings,
     LogOut,
     FileText,
-    UserCog
+    UserCog,
+    CheckCircle
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import SettingsPanel from '../SettingsPanel';
 
 const Sidebar = () => {
     const navigate = useNavigate();
     const { logout, user } = useAuth();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // Dynamic Label for "Dashboard" based on Role
+    const userRoleLower = user?.role?.toLowerCase();
+    const isEmployee = userRoleLower === 'employee';
+    const dashboardLabel = isEmployee ? 'Onboarding' : 'Dashboard';
+    const DashboardIcon = isEmployee ? CheckCircle : LayoutDashboard;
 
     const allNavItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'hr', 'employee'] },
+        { icon: DashboardIcon, label: dashboardLabel, path: isEmployee ? '/my-dashboard' : '/dashboard', roles: ['admin', 'hr', 'employee'] },
         { icon: Users, label: 'Employees', path: '/employees', roles: ['admin', 'hr'] },
         { icon: Activity, label: 'Insights', path: '/insights', roles: ['admin', 'hr'] },
         { icon: FileText, label: 'Reports', path: '/reports', roles: ['admin', 'hr'] },
         { icon: UserCog, label: 'Manage', path: '/manage', roles: ['admin', 'hr'] },
     ];
 
-    // Filter nav items based on user role
+    // Filter nav items based on user role (case-insensitive)
+    const userRole = user?.role?.toLowerCase();
     const navItems = allNavItems.filter(item =>
-        !item.roles || item.roles.includes(user?.role)
+        !item.roles || item.roles.includes(userRole)
     );
 
     const handleLogout = () => {
@@ -36,51 +46,57 @@ const Sidebar = () => {
     };
 
     return (
-        <aside className="w-64 h-screen fixed left-0 top-0 bg-surface border-r border-white/5 flex flex-col z-50">
-            <div className="p-6 cursor-pointer" onClick={() => navigate('/')}>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary filter drop-shadow-glow">
-                    OnboardAI
-                </h1>
-                <p className="text-xs text-text-secondary mt-1 tracking-wider uppercase">Enterprise Edition</p>
-            </div>
+        <>
+            <aside className="w-64 h-screen fixed left-0 top-0 bg-surface border-r border-white/5 flex flex-col z-50">
+                <div className="p-6 cursor-pointer" onClick={() => navigate('/')}>
+                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary filter drop-shadow-glow">
+                        OnboardAI
+                    </h1>
+                    <p className="text-xs text-text-secondary mt-1 tracking-wider uppercase">Enterprise Edition</p>
+                </div>
 
-            <nav className="flex-1 px-4 py-4 space-y-2">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            cn(
-                                "flex items-center px-4 py-3 rounded-xl transition-all duration-200 group",
-                                isActive
-                                    ? "bg-primary/10 text-primary shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)]"
-                                    : "text-text-secondary hover:text-text-primary hover:bg-white/5"
-                            )
-                        }
+                <nav className="flex-1 px-4 py-4 space-y-2">
+                    {navItems.map((item) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            className={({ isActive }) =>
+                                cn(
+                                    "flex items-center px-4 py-3 rounded-xl transition-all duration-200 group",
+                                    isActive
+                                        ? "bg-primary/10 text-primary shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)]"
+                                        : "text-text-secondary hover:text-text-primary hover:bg-white/5"
+                                )
+                            }
+                        >
+                            <item.icon className="w-5 h-5 mr-3" />
+                            <span className="font-medium">{item.label}</span>
+                            {item.path === '/risk' && (
+                                <span className="ml-auto w-2 h-2 rounded-full bg-danger animate-pulse" />
+                            )}
+                        </NavLink>
+                    ))}
+                </nav>
+
+                <div className="p-4 border-t border-white/5">
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="flex items-center w-full px-4 py-3 text-text-secondary hover:text-text-primary hover:bg-white/5 rounded-xl transition-colors"
                     >
-                        <item.icon className="w-5 h-5 mr-3" />
-                        <span className="font-medium">{item.label}</span>
-                        {item.path === '/risk' && (
-                            <span className="ml-auto w-2 h-2 rounded-full bg-danger animate-pulse" />
-                        )}
-                    </NavLink>
-                ))}
-            </nav>
-
-            <div className="p-4 border-t border-white/5">
-                <button className="flex items-center w-full px-4 py-3 text-text-secondary hover:text-text-primary hover:bg-white/5 rounded-xl transition-colors">
-                    <Settings className="w-5 h-5 mr-3" />
-                    <span className="font-medium">Settings</span>
-                </button>
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-3 text-danger hover:bg-danger/10 rounded-xl transition-colors mt-1"
-                >
-                    <LogOut className="w-5 h-5 mr-3" />
-                    <span className="font-medium">Logout</span>
-                </button>
-            </div>
-        </aside>
+                        <Settings className="w-5 h-5 mr-3" />
+                        <span className="font-medium">Settings</span>
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-3 text-danger hover:bg-danger/10 rounded-xl transition-colors mt-1"
+                    >
+                        <LogOut className="w-5 h-5 mr-3" />
+                        <span className="font-medium">Logout</span>
+                    </button>
+                </div>
+            </aside>
+            <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+        </>
     );
 };
 

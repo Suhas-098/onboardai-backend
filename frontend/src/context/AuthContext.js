@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const AuthContext = createContext();
@@ -23,13 +22,12 @@ export const AuthProvider = ({ children }) => {
         try {
             // Call real backend API
             const response = await api.post('/auth/login', { email, password });
+            const { token, user } = response.data;
 
             const userData = {
-                id: response.data.user_id,
-                name: response.data.name,
-                email: email,
-                role: response.data.role,
-                avatar: response.data.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                ...user,
+                token: token,
+                avatar: user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'
             };
 
             setUser(userData);
@@ -49,6 +47,7 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
+        setUser,
         login,
         logout,
         loading

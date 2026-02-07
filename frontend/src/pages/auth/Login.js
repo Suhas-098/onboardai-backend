@@ -21,8 +21,9 @@ const Login = () => {
         try {
             const user = await login(email, password);
 
-            // Redirect based on role
-            if (user.role === 'hr' || user.role === 'admin') {
+            // Redirect based on role (case-insensitive)
+            const role = user.role?.toLowerCase();
+            if (role === 'hr' || role === 'admin' || role === 'hr_admin') {
                 navigate('/dashboard');
             } else {
                 navigate('/my-dashboard');

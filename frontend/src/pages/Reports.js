@@ -59,8 +59,60 @@ const Reports = () => {
                 </Card>
             </div>
 
+            {/* Trends Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Top 3 At Risk - Replaces the old KPI card or sits next to it? Let's assume we replace or add to it. User asked for "Report 2" view. */}
                 <Card className="min-h-[300px]">
+                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-danger" /> Top At-Risk Employees
+                    </h3>
+                    <div className="space-y-4">
+                        {data?.top_risks && data.top_risks.length > 0 ? (
+                            data.top_risks.map((emp, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-danger/5 rounded-lg border border-danger/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-danger/10 flex items-center justify-center text-danger font-bold text-xs">
+                                            {emp.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-text-primary text-sm">{emp.name}</p>
+                                            <p className="text-xs text-text-secondary">{emp.department}</p>
+                                        </div>
+                                    </div>
+                                    <span className="px-2 py-1 bg-danger text-white text-xs rounded font-bold">{emp.risk}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-text-secondary text-sm">No high-risk employees detected.</p>
+                        )}
+                    </div>
+                </Card>
+
+                {/* Risk Trends - Simulated Graph */}
+                <Card className="min-h-[300px]">
+                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                        <BarChart className="w-5 h-5 text-primary" /> Weekly Risk Trends
+                    </h3>
+                    <div className="flex items-end justify-between h-48 px-4">
+                        {data?.weekly_trend?.map((day, i) => (
+                            <div key={i} className="flex flex-col items-center gap-2 w-full">
+                                <div
+                                    className="w-full max-w-[40px] bg-primary/20 hover:bg-primary/40 transition-all rounded-t-sm relative group"
+                                    style={{ height: `${(day.risks / 5) * 100}%` }} // Scale based on max 5 risks for demo
+                                >
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {day.risks}
+                                    </span>
+                                </div>
+                                <span className="text-xs text-text-secondary">{day.day}</span>
+                            </div>
+                        )) || <p>No trend data</p>}
+                    </div>
+                </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Card className="min-h-[250px]">
                     <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                         <PieChart className="w-5 h-5 text-secondary" /> Department Distribution
                     </h3>
@@ -82,20 +134,23 @@ const Reports = () => {
                     </div>
                 </Card>
 
-                <Card className="min-h-[300px]">
-                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-primary" /> Key Performance Indicators
-                    </h3>
-                    <div className="space-y-6">
-                        <div className="p-4 rounded-xl bg-surface-light/50 border border-white/5">
-                            <p className="text-sm text-text-secondary mb-1">Time to Full Productivity</p>
-                            <p className="text-xl font-bold">{data?.averages?.time_to_onboard}</p>
-                        </div>
-                        <div className="p-4 rounded-xl bg-surface-light/50 border border-white/5">
-                            <p className="text-sm text-text-secondary mb-1">First-Month Retention</p>
-                            <p className="text-xl font-bold text-success">98.2%</p>
-                        </div>
-                    </div>
+                <Card>
+                    <h3 className="text-lg font-semibold mb-4 text-text-primary">Download Reports</h3>
+                    <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF or CSV format.</p>
+                    <Button
+                        variant="primary"
+                        className="w-full mb-3"
+                        onClick={() => alert("Report generation started! You will be notified when it's ready.")}
+                    >
+                        <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => alert("CSV export unavailable in demo mode.")}
+                    >
+                        <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
+                    </Button>
                 </Card>
             </div>
         </div>

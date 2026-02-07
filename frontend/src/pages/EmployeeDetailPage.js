@@ -25,6 +25,10 @@ const EmployeeDetailPage = () => {
     const [alertType, setAlertType] = useState("Warning");
     const [sendingAlert, setSendingAlert] = useState(false);
 
+    // Edit Task State
+    const [editTask, setEditTask] = useState(null);
+    const [updatingTask, setUpdatingTask] = useState(false);
+
     const isAdmin = user?.role === 'admin';
 
     useEffect(() => {
@@ -177,10 +181,17 @@ const EmployeeDetailPage = () => {
                                                 <td className="py-3 px-4 text-text-secondary">{task.dueDate}</td>
                                                 <td className="py-3 px-4 text-text-secondary">{task.completedAt}</td>
                                                 <td className="py-3 px-4 text-text-secondary">{task.timeSpent}</td>
+                                                {!isAdmin && (
+                                                    <td className="py-3 px-4">
+                                                        <Button variant="ghost" size="sm" onClick={() => setEditTask(task)}>
+                                                            Edit
+                                                        </Button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         )) : (
                                             <tr>
-                                                <td colSpan="5" className="py-4 text-center text-text-secondary">No tasks assigned.</td>
+                                                <td colSpan="6" className="py-4 text-center text-text-secondary">No tasks assigned.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -318,6 +329,76 @@ const EmployeeDetailPage = () => {
                                 <Button variant="ghost" onClick={() => setShowAlertModal(false)}>Cancel</Button>
                                 <Button variant="primary" onClick={handleSendAlert} disabled={sendingAlert}>
                                     {sendingAlert ? "Sending..." : "Send Alert"} <Send className="w-4 h-4 ml-2" />
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+            {/* Edit Task Modal */}
+            {editTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
+                        <h3 className="text-xl font-bold mb-4">Edit Task: {editTask.name}</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-text-secondary mb-1">Title</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                    defaultValue={editTask.name}
+                                    id="editTitle"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-text-secondary mb-1">Due Date</label>
+                                <input
+                                    type="date"
+                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                    defaultValue={editTask.dueDate}
+                                    id="editDue"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-text-secondary mb-1">Status</label>
+                                <select
+                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                    id="editStatus"
+                                    defaultValue={editTask.status}
+                                >
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed ✅</option>
+                                    <option value="Exception">Exception ⚠️</option>
+                                    <option value="Waived">Waived ⏭️</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
+                                <Button variant="primary" disabled={updatingTask} onClick={async () => {
+                                    setUpdatingTask(true);
+                                    try {
+                                        const title = document.getElementById('editTitle').value;
+                                        const date = document.getElementById('editDue').value;
+                                        const status = document.getElementById('editStatus').value;
+
+                                        await api.put(`/tasks/${editTask.id}`, {
+                                            title,
+                                            due_date: date,
+                                            status
+                                        });
+
+                                        alert("Task updated successfully!");
+                                        window.location.reload();
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Failed to update task.");
+                                    } finally {
+                                        setUpdatingTask(false);
+                                        setEditTask(null);
+                                    }
+                                }}>
+                                    {updatingTask ? "Updating..." : "Save Changes"}
                                 </Button>
                             </div>
                         </div>

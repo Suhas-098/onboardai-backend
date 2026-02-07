@@ -12,8 +12,10 @@ api.interceptors.request.use(
     (config) => {
         const storedUser = localStorage.getItem('onboardai_user');
         if (storedUser) {
-            const user = JSON.parse(storedUser);
-            config.headers['X-User-Id'] = user.id;
+            const userData = JSON.parse(storedUser);
+            if (userData.token) {
+                config.headers['Authorization'] = `Bearer ${userData.token}`;
+            }
         }
         return config;
     },

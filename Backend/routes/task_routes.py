@@ -35,14 +35,14 @@ def get_tasks():
         } for t in tasks
     ]), 200
 
+from middleware.auth_middleware import token_required
+from services.predictor import analyze_employee_risk
+
 @task_routes.route("/tasks/<int:task_id>/complete", methods=["POST"])
+@token_required
 def complete_task(task_id):
-    # Get user_id from header (simulated auth)
-    user_id = request.headers.get("X-User-Id")
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    user_id = int(user_id)
+    user = request.current_user
+    user_id = user.id
     
     # Check if task exists
     task = Task.query.get(task_id)
@@ -64,9 +64,15 @@ def complete_task(task_id):
     # Update Progress
     progress.completion = 100
     progress.completed_at = datetime.now()
-    # Simulate time spent if 0
     if progress.time_spent == 0:
         progress.time_spent = random.randint(5, 60)
+        
+    # Calculate Delay
+    if task.due_date and datetime.now() > task.due_date:
+        delta = datetime.now() - task.due_date
+        progress.delay_days = delta.days
+    else:
+        progress.delay_days = 0
 
     # Log Activity
     log = ActivityLog(
@@ -77,12 +83,36 @@ def complete_task(task_id):
     )
     db.session.add(log)
     
+    # Recalculate User Risk & Progress
+    progress_list = Progress.query.filter_by(user_id=user.id).all()
+    total_items = len(progress_list)
+    completion = sum(p.completion or 0 for p in progress_list) / total_items if total_items > 0 else 0
+    delay_days = sum(p.delay_days or 0 for p in progress_list)
+    missed = sum(1 for p in progress_list if (p.delay_days or 0) > 0)
+    
+    analysis = analyze_employee_risk({
+        "completion": completion,
+        "delay_days": delay_days,
+        "missed_deadlines": missed
+    })
+    
+    user.risk = analysis["risk_level"]
+    user.risk_reason = analysis["message"]
+    
     db.session.commit()
     
-    return jsonify({"message": "Task completed", "progress": {
-        "completion": 100,
-        "completed_at": progress.completed_at.strftime("%Y-%m-%d %H:%M")
-    }})
+    return jsonify({
+        "message": "Task completed",
+        "progress": {
+            "completion": 100,
+            "completed_at": progress.completed_at.strftime("%Y-%m-%d %H:%M")
+        },
+        "user_update": {
+            "risk": user.risk,
+            "risk_message": user.risk_reason,
+            "onboarding_progress": round(completion, 1)
+        }
+    })
 
 # --- New Task Message Routes ---
 from models.task_message import TaskMessage
@@ -184,3 +214,31 @@ def assign_task():
         },
         "alert_sent": alert_created
     }), 201
+
+from utils.auth_guard import check_role
+
+@task_routes.route("/tasks/<int:task_id>", methods=["PUT"])
+@check_role(["admin", "hr"])
+def update_task(task_id):
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+    
+    data = request.json
+    if "due_date" in data:
+        try:
+             if data["due_date"]:
+                task.due_date = datetime.strptime(data["due_date"], "%Y-%m-%d")
+             else:
+                task.due_date = None
+        except ValueError:
+             pass
+    if "assigned_to" in data:
+        task.assigned_to = data["assigned_to"]
+    if "status" in data:
+        task.status = data["status"]
+    if "title" in data:
+        task.title = data["title"]
+        
+    db.session.commit()
+    return jsonify({"message": "Task updated", "task": task.to_dict()})

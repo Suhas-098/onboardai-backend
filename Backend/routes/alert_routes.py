@@ -12,23 +12,23 @@ def get_alerts():
     db_alerts = Alert.query.order_by(Alert.created_at.desc()).all()
     results = [alert.to_dict() for alert in db_alerts]
 
-    # 2. Dynamic Risk Alerts (Real-time check)
-    # We can choose to persist these OR just show them dynamically. 
-    # For a robust system, we might want to check if they exist in DB before adding, 
-    # but for now, let's just append them if they are CRITICAL.
+    # 3. Missed Deadline Alerts
+    from models.task import Task
+    overdue_tasks = Task.query.filter(
+        Task.status.ilike("Pending"),
+        Task.due_date < datetime.now()
+    ).all()
     
-    users = User.query.all()
-    for user in users:
-        if user.risk == "Delayed":
-            # Check if we already have a recent alert for this? (Skipped for simplicity)
-            results.append({
-                "id": f"temp_{user.id}",
-                "level": "Critical",
-                "title": "Onboarding Delayed",
-                "time": "Real-time",
-                "desc": f"Employee {user.name} is significantly behind schedule (Risk: {user.risk}).",
-                "target_user_id": user.id
-            })
+    for task in overdue_tasks:
+        user = User.query.get(task.assigned_to)
+        results.append({
+            "id": f"overdue_{task.id}",
+            "level": "Warning",
+            "title": "Missed Deadline",
+            "time": "Overdue",
+            "desc": f"Employee {user.name if user else 'Unknown'} missed deadline for: {task.title}.",
+            "target_user_id": task.assigned_to
+        })
     
     return jsonify(results)
 

@@ -10,3 +10,17 @@ class User(db.Model):
     avatar = db.Column(db.String(255))
     risk = db.Column(db.String(50))  # On Track, At Risk, Delayed
     risk_reason = db.Column(db.String(255))
+    password_hash = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+            "department": self.department,
+            "joined_date": self.joined_date.strftime("%Y-%m-%d") if self.joined_date else None,
+            "avatar": self.avatar,
+            "risk": self.risk,
+            "risk_reason": self.risk_reason
+        }

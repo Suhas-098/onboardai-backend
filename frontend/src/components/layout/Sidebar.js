@@ -21,7 +21,8 @@ const Sidebar = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // Dynamic Label for "Dashboard" based on Role
-    const isEmployee = user?.role === 'employee';
+    const userRoleLower = user?.role?.toLowerCase();
+    const isEmployee = userRoleLower === 'employee';
     const dashboardLabel = isEmployee ? 'Onboarding' : 'Dashboard';
     const DashboardIcon = isEmployee ? CheckCircle : LayoutDashboard;
 
@@ -33,9 +34,10 @@ const Sidebar = () => {
         { icon: UserCog, label: 'Manage', path: '/manage', roles: ['admin', 'hr'] },
     ];
 
-    // Filter nav items based on user role
+    // Filter nav items based on user role (case-insensitive)
+    const userRole = user?.role?.toLowerCase();
     const navItems = allNavItems.filter(item =>
-        !item.roles || item.roles.includes(user?.role)
+        !item.roles || item.roles.includes(userRole)
     );
 
     const handleLogout = () => {

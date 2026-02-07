@@ -13,7 +13,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { useState, useEffect } from 'react';
 
-const TaskItem = ({ task, onComplete, alerts = [] }) => {
+const TaskItem = ({ task, onComplete, onContactHR, alerts = [] }) => {
     // Check if there is a warning/critical alert relevant to this task
     const relatedAlert = alerts.find(a =>
         (a.type === 'Critical' || a.type === 'Warning') &&
@@ -21,15 +21,20 @@ const TaskItem = ({ task, onComplete, alerts = [] }) => {
     );
 
     const isCompleted = task.status === 'Completed';
-    // Use dynamic icon logic
-    const Icon = isCompleted ? CheckCircle : (relatedAlert ? AlertTriangle : FileText);
+    // Logic for missed deadline
+    // Use dueDateRaw if available (ISO), else fallback to dueDate
+    const deadlineDate = task.dueDateRaw ? new Date(task.dueDateRaw) : (task.dueDate ? new Date(task.dueDate) : null);
+    const isMissed = !isCompleted && deadlineDate && deadlineDate < new Date();
+
+    const Icon = isCompleted ? CheckCircle : (isMissed || relatedAlert ? AlertTriangle : FileText);
 
     return (
-        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:bg-white/5 group ${relatedAlert && !isCompleted ? 'border-warning/50 bg-warning/5' : 'bg-surface border-white/5'
+        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:bg-white/5 group ${isMissed ? 'border-danger/50 bg-danger/5' : relatedAlert && !isCompleted ? 'border-warning/50 bg-warning/5' : 'bg-surface border-white/5'
             }`}>
             <div className="flex items-center gap-4">
                 <div className={`p-2 rounded-lg ${isCompleted ? 'bg-success/20 text-success' :
-                    relatedAlert ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary'
+                    isMissed ? 'bg-danger/20 text-danger' :
+                        relatedAlert ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary'
                     }`}>
                     <Icon className="w-5 h-5" />
                 </div>
@@ -40,9 +45,17 @@ const TaskItem = ({ task, onComplete, alerts = [] }) => {
                     <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
                         <span className="capitalize">{task.type || 'Standard'}</span>
                         <span>•</span>
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Due {task.dueDate}</span>
+                        <span className={`flex items-center gap-1 ${isMissed ? 'text-danger font-medium' : ''}`}>
+                            <Clock className="w-3 h-3" /> Due {task.dueDate}
+                            {isMissed && " (Overdue)"}
+                        </span>
                     </div>
-                    {relatedAlert && !isCompleted && (
+                    {isMissed && (
+                        <div className="mt-2 text-xs text-danger font-medium flex items-center gap-1 uppercase tracking-tight">
+                            ⚠️ You missed the deadline. Please contact HR.
+                        </div>
+                    )}
+                    {relatedAlert && !isCompleted && !isMissed && (
                         <div className="mt-2 text-xs text-warning font-medium flex items-center gap-1">
                             ⚠️ HR: {relatedAlert.message}
                         </div>
@@ -50,18 +63,24 @@ const TaskItem = ({ task, onComplete, alerts = [] }) => {
                 </div>
             </div>
             {!isCompleted && (
-                <Button size="sm" variant="secondary" onClick={() => onComplete(task.id)}>Mark Complete</Button>
+                isMissed ? (
+                    <Button size="sm" variant="danger" onClick={() => onContactHR(task)}>Contact HR</Button>
+                ) : (
+                    <Button size="sm" variant="secondary" onClick={() => onComplete(task.id)}>Mark Complete</Button>
+                )
             )}
         </div>
     );
 };
 
 const EmployeeDashboard = () => {
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
     const [tasks, setTasks] = useState([]);
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [overallProgress, setOverallProgress] = useState(0);
+    const [contactTask, setContactTask] = useState(null);
+    const [sendingMsg, setSendingMsg] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -69,11 +88,29 @@ const EmployeeDashboard = () => {
             try {
                 const [tasksRes, alertsRes] = await Promise.all([
                     endpoints.employees.getTasks(user.id),
-                    endpoints.alerts.getAll() // Assuming this returns relevant alerts
+                    endpoints.employees.getAlerts ? endpoints.employees.getAlerts(user.id) : endpoints.alerts.getAll() // Fallback
                 ]);
 
-                setTasks(tasksRes.data);
-                setAlerts(alertsRes.data);
+                // Sort tasks: Missed -> Pending -> Completed
+                const sortedTasks = tasksRes.data.sort((a, b) => {
+                    const statusOrder = { 'Completed': 2, 'Pending': 1 };
+                    // Custom logic: Missed is pending + overdue
+                    const now = new Date();
+                    const aDate = a.dueDateRaw ? new Date(a.dueDateRaw) : new Date(a.dueDate);
+                    const bDate = b.dueDateRaw ? new Date(b.dueDateRaw) : new Date(b.dueDate);
+
+                    const aMissed = a.status !== 'Completed' && aDate < now;
+                    const bMissed = b.status !== 'Completed' && bDate < now;
+
+                    if (aMissed && !bMissed) return -1;
+                    if (!aMissed && bMissed) return 1;
+
+                    if (a.status !== b.status) return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+                    return aDate - bDate;
+                });
+
+                setTasks(sortedTasks);
+                setAlerts(alertsRes.data || []);
 
                 // Calc progress based on tasks
                 const completed = tasksRes.data.filter(t => t.status === 'Completed').length;
@@ -91,19 +128,52 @@ const EmployeeDashboard = () => {
 
     const handleCompleteTask = async (taskId) => {
         try {
-            await endpoints.tasks.complete(taskId);
-            // Refresh tasks
-            const res = await endpoints.employees.getTasks(user.id);
-            setTasks(res.data);
+            const res = await endpoints.tasks.complete(taskId);
 
-            // Re-calc progress
-            const completed = res.data.filter(t => t.status === 'Completed').length;
-            const total = res.data.length;
-            setOverallProgress(total > 0 ? Math.round((completed / total) * 100) : 0);
+            // Update local tasks state instantly
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t));
+
+            // Update user state if backend returned risk updates
+            if (res.data.user_update && setUser) {
+                setUser(prev => ({
+                    ...prev,
+                    risk: res.data.user_update.risk,
+                    risk_message: res.data.user_update.risk_message
+                }));
+            }
+
+            // Recalculate progress locally for immediate UI update
+            setTasks(prev => {
+                const updated = prev.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t);
+                const completed = updated.filter(t => t.status === 'Completed').length;
+                const total = updated.length;
+                setOverallProgress(total > 0 ? Math.round((completed / total) * 100) : 0);
+                return updated;
+            });
 
         } catch (err) {
-            console.error(err);
-            alert("Failed to complete task");
+            console.error("Task completion failed", err);
+            // If it's a 401, the interceptor might handle it, but we show a message
+            alert("Failed to complete task. Please ensure you are logged in.");
+        }
+    };
+
+    const handleSendHRMessage = async () => {
+        if (!contactTask) return;
+        setSendingMsg(true);
+        try {
+            await endpoints.alerts.create({
+                type: 'MISSED_DEADLINE_CONTACT',
+                target_user_id: user.id, // Or HR ID if strictly targeted, but context implies we are sending alert TO system
+                message: `I have missed the deadline for ${contactTask.name}. Please guide next steps.`
+            });
+            alert("👉 Message sent to HR successfully.");
+            setContactTask(null);
+        } catch (err) {
+            console.error("Failed to send message", err);
+            alert("Failed to send message. Please try again.");
+        } finally {
+            setSendingMsg(false);
         }
     };
 
@@ -138,6 +208,7 @@ const EmployeeDashboard = () => {
                                     key={task.id}
                                     task={task}
                                     onComplete={handleCompleteTask}
+                                    onContactHR={setContactTask}
                                     alerts={alerts}
                                 />
                             ))
@@ -181,22 +252,59 @@ const EmployeeDashboard = () => {
                         </div>
                     </Card>
 
-                    {/* 3. Recommended Training */}
-                    <Card>
-                        <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <Award className="w-4 h-4" /> Recommended Training
-                        </h3>
-                        <div className="space-y-3">
-                            {['Company Culture 101', 'Cybersecurity Basics', 'IT Setup Guide'].map((item, i) => (
-                                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-surface-light hover:bg-white/5 cursor-pointer transition-colors group">
-                                    <div className="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                                        <PlayCircle className="w-4 h-4" />
+                    {/* Removed Hardcoded Recommended Training Widget as per requirements to remove hardcoded data */}
+
+                    {/* Contact HR Modal */}
+                    {contactTask && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                            <Card className="max-w-md w-full shadow-2xl border-primary/20 animate-in zoom-in-95 duration-200">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 rounded-full bg-danger/10 text-danger">
+                                        <AlertTriangle className="w-6 h-6" />
                                     </div>
-                                    <span className="text-sm font-medium">{item}</span>
+                                    <div>
+                                        <h3 className="text-xl font-bold">Contact HR</h3>
+                                        <p className="text-text-secondary text-sm">Action required for missed deadline</p>
+                                    </div>
                                 </div>
-                            ))}
+
+                                <div className="space-y-4 mb-8">
+                                    <div className="p-4 rounded-xl bg-surface-light border border-white/5">
+                                        <p className="text-xs text-text-secondary uppercase tracking-wider mb-1">Overdue Task</p>
+                                        <p className="font-medium">{contactTask.name}</p>
+                                    </div>
+
+                                    <p className="text-text-primary">
+                                        "I have missed the deadline for {contactTask.name}. Please guide next steps."
+                                    </p>
+
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                                        <FileText className="w-4 h-4 text-primary" />
+                                        <span className="text-sm font-medium">hr@company.com</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="primary"
+                                        className="flex-1"
+                                        onClick={handleSendHRMessage}
+                                        disabled={sendingMsg}
+                                    >
+                                        {sendingMsg ? "Sending..." : "Send to HR"}
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1"
+                                        onClick={() => setContactTask(null)}
+                                        disabled={sendingMsg}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </Card>
                         </div>
-                    </Card>
+                    )}
                 </div>
             </div>
         </div>

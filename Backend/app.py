@@ -28,6 +28,8 @@ app.register_blueprint(employee_routes, url_prefix="/api")
 app.register_blueprint(risk_routes, url_prefix="/api")
 app.register_blueprint(alert_routes, url_prefix="/api")
 app.register_blueprint(reports_routes, url_prefix="/api")
+from routes.template_routes import template_routes
+app.register_blueprint(template_routes, url_prefix="/api")
 from routes.notification_routes import notification_routes
 from routes.search_routes import search_routes
 app.register_blueprint(notification_routes, url_prefix="/api")

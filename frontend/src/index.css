@@ -1,10 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Dark Mode (Default) - Midnight/Deep Charcoal */
+    --background: 15 17 21;
+    /* #0F1115 */
+    --surface: 24 27 33;
+    /* #181B21 */
+    --surface-light: 34 38 46;
+    /* #22262E */
+    --text-primary: 248 250 252;
+    /* #F8FAFC */
+    --text-secondary: 148 163 184;
+    /* #94A3B8 */
+    --border: 45 50 62;
+    /* #2D323E */
+    --primary: 16 185 129;
+    /* #10B981 */
+    --secondary: 20 184 166;
+    /* #14B8A6 */
+    --danger: 239 68 68;
+    /* #EF4444 */
+    --warning: 245 158 11;
+    /* #F59E0B */
+  }
+
+  .light {
+    /* Light Mode - Slate/White */
+    --background: 248 250 252;
+    /* #F8FAFC */
+    --surface: 255 255 255;
+    /* #FFFFFF */
+    --surface-light: 241 245 249;
+    /* #F1F5F9 (Slate 100) */
+    --text-primary: 15 23 42;
+    /* #0F172A (Slate 900) */
+    --text-secondary: 100 116 139;
+    /* #64748B (Slate 500) */
+    --border: 226 232 240;
+    /* #E2E8F0 (Slate 200) */
+    /* Keep primary/secondary/danger same or adjust if needed. Usually brand colors stay similar. */
+  }
+
   body {
     @apply bg-background text-text-primary antialiased selection:bg-primary selection:text-background;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   /* Custom Scrollbar */

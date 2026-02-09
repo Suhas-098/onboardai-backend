@@ -12,6 +12,7 @@ import Reports from './pages/Reports';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import EmployeeDetailPage from './pages/EmployeeDetailPage';
 import EmployeeManagement from './pages/EmployeeManagement';
+import TemplatesPage from './pages/admin/TemplatesPage';
 import AppLayout from './components/layout/AppLayout';
 
 const DashboardLayout = ({ children }) => (
@@ -73,6 +74,12 @@ export default function App() {
               <Route path="/manage" element={
                 <DashboardLayout>
                   <EmployeeManagement />
+                </DashboardLayout>
+              } />
+
+              <Route path="/templates" element={
+                <DashboardLayout>
+                  <TemplatesPage />
                 </DashboardLayout>
               } />
 

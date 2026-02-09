@@ -11,5 +11,6 @@ def init_database(app):
         from models.activity_log import ActivityLog
         from models.employee_notification import EmployeeNotification
         from models.task_message import TaskMessage
+        from models.onboarding_template import OnboardingTemplate, TemplateTask
         
         db.create_all()

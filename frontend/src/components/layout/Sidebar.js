@@ -31,6 +31,7 @@ const Sidebar = () => {
         { icon: Users, label: 'Employees', path: '/employees', roles: ['admin', 'hr'] },
         { icon: Activity, label: 'Insights', path: '/insights', roles: ['admin', 'hr'] },
         { icon: FileText, label: 'Reports', path: '/reports', roles: ['admin', 'hr'] },
+        { icon: LayoutDashboard, label: 'Templates', path: '/templates', roles: ['admin', 'hr'] },
         { icon: UserCog, label: 'Manage', path: '/manage', roles: ['admin', 'hr'] },
     ];
 

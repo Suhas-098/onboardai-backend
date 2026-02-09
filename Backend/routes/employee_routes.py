@@ -56,10 +56,12 @@ def get_all_employees():
             response_data.append({
                 "id": user.id,
                 "name": user.name,
+                "email": user.email,
                 "role": user.role,
                 "dept": user.department,
                 "avatar": user.avatar or "👤",
                 "score": round(completion_avg, 1),
+                "progress": round(completion_avg, 1),
                 "risk": analysis["risk_level"],
                 "risk_message": analysis["message"]
             })

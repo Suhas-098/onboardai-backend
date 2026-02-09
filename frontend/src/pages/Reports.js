@@ -2,17 +2,22 @@ import { useState, useEffect } from 'react';
 import { FileDown, PieChart, BarChart, TrendingUp, Loader2 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import api from '../services/api';
+import { endpoints } from '../services/api';
 
 const Reports = () => {
     const [data, setData] = useState(null);
+    const [weeklyTrend, setWeeklyTrend] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                const response = await api.get('/reports/summary');
-                setData(response.data);
+                const [summaryRes, trendRes] = await Promise.all([
+                    endpoints.reports.getSummary(),
+                    endpoints.reports.getWeeklyRiskTrend()
+                ]);
+                setData(summaryRes.data);
+                setWeeklyTrend(trendRes.data);
             } catch (error) {
                 console.error("Failed to load reports:", error);
             } finally {
@@ -33,9 +38,6 @@ const Reports = () => {
                     <h2 className="text-3xl font-bold">Enterprise Reports</h2>
                     <p className="text-text-secondary mt-1">Detailed organizational onboarding analytics</p>
                 </div>
-                <Button variant="secondary">
-                    <FileDown className="w-4 h-4 mr-2" /> Download Full Report
-                </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -94,7 +96,7 @@ const Reports = () => {
                         <BarChart className="w-5 h-5 text-primary" /> Weekly Risk Trends
                     </h3>
                     <div className="flex items-end justify-between h-48 px-4">
-                        {data?.weekly_trend?.map((day, i) => (
+                        {weeklyTrend.length > 0 ? weeklyTrend.map((day, i) => (
                             <div key={i} className="flex flex-col items-center gap-2 w-full">
                                 <div
                                     className="w-full max-w-[40px] bg-primary/20 hover:bg-primary/40 transition-all rounded-t-sm relative group"
@@ -106,7 +108,7 @@ const Reports = () => {
                                 </div>
                                 <span className="text-xs text-text-secondary">{day.day}</span>
                             </div>
-                        )) || <p>No trend data</p>}
+                        )) : <p className="text-center w-full text-text-secondary">No trend data available.</p>}
                     </div>
                 </Card>
             </div>

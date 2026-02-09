@@ -43,6 +43,18 @@ export const endpoints = {
         getAll: () => api.get('/risks'),
         getStats: () => api.get('/risks/stats'),
     },
+    reports: {
+        getSummary: () => api.get('/reports/summary'),
+        getWeeklyRiskTrend: () => api.get('/reports/weekly-risk-trend'),
+        export: () => api.get('/reports/export')
+    },
+    dashboard: {
+        getSummary: () => api.get('/dashboard/summary'),
+        getRiskTrend: () => api.get('/dashboard/risk-trend'),
+        getRiskHeatmap: () => api.get('/dashboard/risk-heatmap'),
+        getTopImproved: () => api.get('/dashboard/top-improved'),
+        getCriticalFocus: () => api.get('/dashboard/critical-focus'),
+    },
     alerts: {
         getAll: () => api.get('/alerts'),
         create: (data) => api.post('/alerts', data),
@@ -64,6 +76,18 @@ export const endpoints = {
     },
     search: {
         query: (scope, query, userId) => api.get(`/search?scope=${scope}&query=${query}&user_id=${userId}`),
+    },
+    templates: {
+        getAll: () => api.get('/templates'),
+        create: (data) => api.post('/templates', data),
+        getOne: (id) => api.get(`/templates/${id}`),
+        delete: (id) => api.delete(`/templates/${id}`),
+        update: (id, data) => api.put(`/templates/${id}`, data),
+        assign: (userId, templateId) => api.post(`/employees/${userId}/assign-template/${templateId}`),
+    },
+    ml: {
+        predictRisk: (data) => api.post('/predict-risk', data),
+        getSummary: () => api.get('/ml/prediction-summary'),
     }
 };
 

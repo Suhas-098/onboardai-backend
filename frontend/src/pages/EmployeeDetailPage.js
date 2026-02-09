@@ -106,12 +106,12 @@ const EmployeeDetailPage = () => {
             <Card className="p-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl" />
                 <div className="flex flex-col md:flex-row gap-6 items-start relative z-10">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-white/10 flex items-center justify-center text-4xl shadow-lg">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-border flex items-center justify-center text-4xl shadow-lg">
                         {employee.avatar}
                     </div>
                     <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-white">{employee.name}</h1>
+                            <h1 className="text-3xl font-bold text-text-primary">{employee.name}</h1>
                             {/* Only show Risk info if not admin and data exists */}
                             {!isAdmin && employee.risk && (
                                 <Badge variant={getRiskColor(employee.risk)}>{employee.risk}</Badge>
@@ -130,7 +130,7 @@ const EmployeeDetailPage = () => {
                     {!isAdmin && (
                         <div className="text-right">
                             <div className="text-sm text-text-secondary mb-1">Onboarding Progress</div>
-                            <div className="text-3xl font-mono font-bold text-primary">{employee.progress}%</div>
+                            <div className="text-3xl font-mono font-bold text-primary">{employee.score}%</div>
                         </div>
                     )}
                 </div>
@@ -232,7 +232,7 @@ const EmployeeDetailPage = () => {
                                         <label className="block text-sm text-text-secondary mb-1">Task Title</label>
                                         <input
                                             type="text"
-                                            className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                            className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
                                             placeholder="e.g. Upload Bank Details"
                                             id="taskTitle"
                                         />
@@ -242,7 +242,7 @@ const EmployeeDetailPage = () => {
                                             <label className="block text-sm text-text-secondary mb-1">Due Date</label>
                                             <input
                                                 type="date"
-                                                className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                                className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
                                                 id="taskDue"
                                             />
                                         </div>

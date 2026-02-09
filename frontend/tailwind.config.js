@@ -6,17 +6,17 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                background: "#0F1115", // Midnight Black
-                surface: "#181B21",    // Deep Charcoal
-                "surface-light": "#22262E",
-                primary: "#10B981",    // Neon Mint (Tailwind Emerald-500 equivalent)
+                background: "rgb(var(--background) / <alpha-value>)",
+                surface: "rgb(var(--surface) / <alpha-value>)",
+                "surface-light": "rgb(var(--surface-light) / <alpha-value>)",
+                primary: "rgb(var(--primary) / <alpha-value>)",
                 "primary-glow": "rgba(16, 185, 129, 0.5)",
-                secondary: "#14B8A6",  // Electric Cyan (Tailwind Teal-500)
+                secondary: "rgb(var(--secondary) / <alpha-value>)",
                 accent: "#F59E0B",     // Warm Amber
-                danger: "#EF4444",     // Neon Coral
-                "text-primary": "#F8FAFC",
-                "text-secondary": "#94A3B8",
-                border: "#2D323E",
+                danger: "rgb(var(--danger) / <alpha-value>)",
+                "text-primary": "rgb(var(--text-primary) / <alpha-value>)",
+                "text-secondary": "rgb(var(--text-secondary) / <alpha-value>)",
+                border: "rgb(var(--border) / <alpha-value>)",
             },
             fontFamily: {
                 sans: ['Inter', 'sans-serif'],

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext();
 
@@ -14,6 +16,7 @@ export const ThemeProvider = ({ children }) => {
 
     const [accentColor, setAccentColor] = useState('blue'); // blue, green, purple, teal
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const { user } = useAuth();
 
     useEffect(() => {
         // Apply theme class to html/body
@@ -24,8 +27,16 @@ export const ThemeProvider = ({ children }) => {
         localStorage.setItem('onboardai_theme', theme);
     }, [theme]);
 
-    const toggleTheme = (newTheme) => {
+    const toggleTheme = async (newTheme) => {
         setTheme(newTheme);
+        if (user) {
+            try {
+                // Fire and forget persistence
+                await api.put(`/users/${user.id}/preference`, { theme: newTheme });
+            } catch (err) {
+                console.error("Failed to persist theme", err);
+            }
+        }
     };
 
     const value = {

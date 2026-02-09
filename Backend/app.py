@@ -11,10 +11,10 @@ from routes.risk_routes import risk_routes
 from routes.alert_routes import alert_routes
 from routes.reports_routes import reports_routes
 
-app = Flask(__name__)
+from config.config import Config
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:ThunderGod098@localhost/onboardai"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app = Flask(__name__)
+app.config.from_object(Config)
 
 init_database(app)
 

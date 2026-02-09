@@ -382,7 +382,7 @@ const EmployeeDetailPage = () => {
                                         const date = document.getElementById('editDue').value;
                                         const status = document.getElementById('editStatus').value;
 
-                                        await api.put(`/tasks/${editTask.id}`, {
+                                        await endpoints.tasks.update(editTask.id, {
                                             title,
                                             due_date: date,
                                             status

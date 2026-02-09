@@ -7,7 +7,7 @@ class Task(db.Model):
     status = db.Column(db.String(50), default="Not Started")
     due_date = db.Column(db.DateTime)
     task_type = db.Column(db.String(50))  # video, form, upload
-    assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
 
     def to_dict(self):
         return {

@@ -55,6 +55,7 @@ export const endpoints = {
         assign: (data) => api.post(`/tasks/assign`, data),
         getMessages: (taskId) => api.get(`/tasks/${taskId}/messages`),
         postMessage: (taskId, data) => api.post(`/tasks/${taskId}/messages`, data),
+        update: (taskId, data) => api.put(`/tasks/${taskId}`, data),
     },
     notifications: {
         getAll: (userId) => api.get(`/notifications?user_id=${userId}`),

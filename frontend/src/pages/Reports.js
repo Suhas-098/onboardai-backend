@@ -41,7 +41,7 @@ const Reports = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="bg-primary/5 border-primary/10">
                     <p className="text-sm text-text-secondary">Avg. Completion</p>
-                    <h3 className="text-2xl font-bold text-primary mt-1">{data?.averages?.completion}%</h3>
+                    <h3 className="text-2xl font-bold text-primary mt-1">{data?.averages?.completion ?? 0}%</h3>
                 </Card>
                 <Card>
                     <p className="text-sm text-text-secondary">Total Employees</p>
@@ -124,7 +124,7 @@ const Reports = () => {
                                     <div className="flex-1 h-2 bg-surface-light rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-secondary rounded-full"
-                                            style={{ width: `${(dept.count / data.total_employees) * 100}%` }}
+                                            style={{ width: `${data.total_employees > 0 ? (dept.count / data.total_employees) * 100 : 0}%` }}
                                         />
                                     </div>
                                     <span className="text-sm font-medium w-8 text-right">{dept.count}</span>

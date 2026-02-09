@@ -1,8 +1,6 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from functools import wraps
 import jwt
-
-SECRET_KEY = "YOUR_SECRET_KEY_HERE"
 
 def check_role(allowed_roles):
     """
@@ -28,7 +26,7 @@ def check_role(allowed_roles):
             if auth_header and auth_header.startswith("Bearer "):
                 token = auth_header.split(" ")[1]
                 try:
-                    data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                    data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
                     from models.user import User
                     user = User.query.get(int(data['sub']))
                 except jwt.ExpiredSignatureError:

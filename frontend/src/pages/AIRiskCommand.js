@@ -96,7 +96,7 @@ const AIRiskCommand = () => {
                 {/* Main Chart */}
                 <Card className="lg:col-span-2 min-h-[400px]">
                     <h3 className="text-lg font-semibold mb-6">Risk Trend Analysis</h3>
-                    <div className="h-[300px] w-full">
+                    <div className="h-[300px] w-full" style={{ height: 300, width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <AreaChart data={data}>
                                 <defs>

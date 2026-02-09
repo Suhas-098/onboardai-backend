@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from models.user import User
 import jwt
 import datetime
@@ -20,13 +20,13 @@ def login():
             return jsonify({"message": "Invalid credentials"}), 401
 
         if bcrypt.checkpw(data["password"].encode('utf-8'), user.password_hash.encode('utf-8')):
-            # Generate JWT - sub must be string for PyJWT
+            # Generate JWT
             token = jwt.encode({
                 "sub": str(user.id),
                 "role": user.role,
                 "name": user.name,
                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-            }, "YOUR_SECRET_KEY_HERE", algorithm="HS256") # TODO: Move secret to env
+            }, current_app.config['SECRET_KEY'], algorithm="HS256")
 
             return jsonify({
                 "token": token,

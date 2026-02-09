@@ -1,0 +1,9 @@
+# Make backend count as main language
+*.py linguist-detectable=true
+*.js linguist-detectable=false
+*.jsx linguist-detectable=false
+*.ts linguist-detectable=false
+*.tsx linguist-detectable=false
+
+# (Optional) ignore node_modules if present
+node_modules/ linguist-vendored

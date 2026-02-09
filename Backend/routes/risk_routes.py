@@ -121,3 +121,30 @@ def get_risk_stats():
             stats["delayed"] += 1
             
     return jsonify(stats)
+
+@risk_routes.route("/ml/prediction-summary", methods=["GET"])
+@token_required
+def get_prediction_summary():
+    """
+    aggregated summary for the ML Predictor - Enhanced Requirement
+    """
+    users = User.query.filter(User.role.ilike("employee")).all()
+    stats = {
+        "on_track": 0,
+        "at_risk": 0,
+        "delayed": 0
+    }
+    
+    for user in users:
+        # Re-use existing risk logic or stored field
+        # For performance, we trust the stored field updated by previous scans
+        # or defaults to "On Track"
+        risk = (user.risk or "On Track").lower()
+        if risk == "on track" or risk == "good":
+            stats["on_track"] += 1
+        elif risk == "at risk" or risk == "warning":
+            stats["at_risk"] += 1
+        elif risk == "delayed" or risk == "critical":
+            stats["delayed"] += 1
+            
+    return jsonify(stats)

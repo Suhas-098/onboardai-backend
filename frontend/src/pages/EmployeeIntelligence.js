@@ -23,22 +23,22 @@ const ActionMenu = ({ isOpen, onClose, role, onNavigate, onAction }) => {
     if (!isOpen) return null;
 
     return (
-        <div ref={menuRef} className="absolute right-0 top-8 w-48 bg-surface border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden">
+        <div ref={menuRef} className="absolute right-0 top-8 w-48 bg-surface border border-border rounded-xl shadow-xl z-20 overflow-hidden">
             {role === 'admin' ? (
                 <div className="flex flex-col">
-                    <button onClick={() => onNavigate()} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-white/5 flex items-center gap-2">
+                    <button onClick={() => onNavigate()} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-surface-light flex items-center gap-2">
                         <UserCog className="w-4 h-4 text-text-secondary" /> View Basic Profile
                     </button>
-                    <button onClick={() => onAction('reset_login')} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-white/5 flex items-center gap-2">
+                    <button onClick={() => onAction('reset_login')} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-surface-light flex items-center gap-2">
                         <KeyRound className="w-4 h-4 text-text-secondary" /> Reset Login
                     </button>
-                    <button onClick={() => onAction('activate')} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-white/5 flex items-center gap-2">
+                    <button onClick={() => onAction('activate')} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-surface-light flex items-center gap-2">
                         <Power className="w-4 h-4 text-text-secondary" /> Activate User
                     </button>
                 </div>
             ) : (
                 <div className="flex flex-col">
-                    <button onClick={() => onNavigate()} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-white/5">
+                    <button onClick={() => onNavigate()} className="px-4 py-3 text-sm text-left text-text-primary hover:bg-surface-light">
                         View Full Details
                     </button>
                 </div>
@@ -79,7 +79,6 @@ const EmployeeIntelligence = () => {
     const handleAction = (action, empId) => {
         console.log(`Action ${action} for ${empId}`);
         setOpenMenuId(null);
-        // Implement actual actions if needed (e.g., API call for reset)
         if (action === 'reset_login') alert(`Login reset for employee ${empId}`);
         if (action === 'activate') alert(`User ${empId} activated`);
     };
@@ -105,7 +104,7 @@ const EmployeeIntelligence = () => {
         switch (risk.toLowerCase()) {
             case 'critical': return 'danger';
             case 'warning': return 'warning';
-            case 'neutral': return 'warning'; // Yellowish
+            case 'neutral': return 'warning';
             case 'good': return 'success';
             default: return 'success';
         }
@@ -115,7 +114,7 @@ const EmployeeIntelligence = () => {
         switch (riskType?.toLowerCase()) {
             case 'critical': return <ShieldAlert className="w-4 h-4" />;
             case 'warning': return <ShieldAlert className="w-4 h-4" />;
-            case 'neutral': return <ShieldAlert className="w-4 h-4" />; // Or a different icon
+            case 'neutral': return <ShieldAlert className="w-4 h-4" />;
             case 'good': return <CheckCircle className="w-4 h-4" />;
             default: return <CheckCircle className="w-4 h-4" />;
         }
@@ -126,7 +125,7 @@ const EmployeeIntelligence = () => {
             {/* ... header ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h2 className="text-3xl font-bold text-text-primary">
                         {user?.role === 'admin' ? 'User Administration' : 'Employee Intelligence'}
                     </h2>
                     <p className="text-text-secondary mt-1">
@@ -142,7 +141,7 @@ const EmployeeIntelligence = () => {
                             placeholder="Search employees..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-surface border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary/50 transition-all w-64"
+                            className="bg-surface border border-border rounded-xl pl-10 pr-4 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50 transition-all w-64"
                         />
                     </div>
                 </div>
@@ -156,7 +155,7 @@ const EmployeeIntelligence = () => {
 
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-full bg-surface-light border border-white/5 flex items-center justify-center text-lg font-bold text-primary shadow-inner">
+                                <div className="w-12 h-12 rounded-full bg-surface-light border border-border flex items-center justify-center text-lg font-bold text-primary shadow-inner">
                                     {emp.avatar || emp.name.charAt(0)}
                                 </div>
                                 <div>
@@ -171,7 +170,7 @@ const EmployeeIntelligence = () => {
                             </div>
                             <div className="relative">
                                 <button
-                                    className="text-text-secondary hover:text-white transition-colors p-1"
+                                    className="text-text-secondary hover:text-primary transition-colors p-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setOpenMenuId(openMenuId === emp.id ? null : emp.id);
@@ -218,7 +217,7 @@ const EmployeeIntelligence = () => {
                             )}
 
                             {emp.risk && (
-                                <div className="pt-4 flex items-center justify-between border-t border-white/5">
+                                <div className="pt-4 flex items-center justify-between border-t border-border">
                                     <span className="text-xs text-text-secondary uppercase tracking-wider font-semibold">AI Risk Score</span>
                                     <Badge variant={getRiskVariant(emp.risk)}>
                                         {emp.risk === 'Good' ? 'On Track' : (emp.risk === 'Critical' ? 'High Risk' : (emp.risk + ' Risk'))}

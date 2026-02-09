@@ -16,9 +16,24 @@ const EmployeeManagement = () => {
         department: ''
     });
 
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [templates, setTemplates] = useState([]);
+    const [selectedTemplate, setSelectedTemplate] = useState('');
+
     useEffect(() => {
         fetchEmployees();
+        fetchTemplates();
     }, []);
+
+    const fetchTemplates = async () => {
+        try {
+            const res = await api.get('/templates');
+            setTemplates(res.data);
+        } catch (error) {
+            console.error("Failed to load templates");
+        }
+    };
 
     const fetchEmployees = async () => {
         try {
@@ -26,6 +41,26 @@ const EmployeeManagement = () => {
             setEmployees(response.data);
         } catch (error) {
             showToast('Failed to load employees', 'error');
+        }
+    };
+
+    const openAssignModal = (employee) => {
+        setSelectedEmployee(employee);
+        setIsAssignModalOpen(true);
+    };
+
+    const handleAssignTemplate = async () => {
+        if (!selectedTemplate) return;
+        setLoading(true);
+        try {
+            await api.post(`/employees/${selectedEmployee.id}/assign-template/${selectedTemplate}`);
+            showToast(`Template assigned to ${selectedEmployee.name}`, 'success');
+            setIsAssignModalOpen(false);
+            fetchEmployees(); // Refresh progress
+        } catch (error) {
+            showToast(error.response?.data?.message || 'Failed to assign template', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -76,6 +111,7 @@ const EmployeeManagement = () => {
                             <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Role</th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Department</th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Progress</th>
+                            <th className="px-6 py-4 text-right text-sm font-semibold text-text-secondary">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -99,6 +135,14 @@ const EmployeeManagement = () => {
                                         </div>
                                         <span className="text-sm text-text-secondary w-12">{emp.progress || 0}%</span>
                                     </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button
+                                        onClick={() => openAssignModal(emp)}
+                                        className="text-sm text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        Assign Template
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -183,8 +227,6 @@ const EmployeeManagement = () => {
                                 />
                             </div>
 
-
-
                             <div className="flex gap-3 pt-4">
                                 <button
                                     type="button"
@@ -202,6 +244,43 @@ const EmployeeManagement = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Assign Template Modal */}
+            {isAssignModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-surface rounded-2xl border border-white/10 max-w-sm w-full p-6 shadow-2xl">
+                        <h2 className="text-xl font-bold mb-4">Assign Template</h2>
+                        <p className="text-text-secondary mb-4">Select a template for {selectedEmployee?.name}</p>
+
+                        <select
+                            className="w-full px-4 py-3 bg-background border border-white/10 rounded-xl mb-6"
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value)}
+                        >
+                            <option value="">Select Template...</option>
+                            {templates.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} ({t.task_count} tasks)</option>
+                            ))}
+                        </select>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsAssignModalOpen(false)}
+                                className="flex-1 px-4 py-2 bg-white/5 rounded-lg text-text-primary"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAssignTemplate}
+                                disabled={!selectedTemplate || loading}
+                                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg disabled:opacity-50"
+                            >
+                                {loading ? 'Assigning...' : 'Assign'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

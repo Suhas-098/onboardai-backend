@@ -26,8 +26,8 @@ const LandingPage = () => {
                         <span>AI-Powered Workforce Intelligence</span>
                     </div>
 
-                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/50">
+                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight text-text-primary">
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-text-primary via-text-primary/90 to-text-primary/50">
                             Predict Employee Success
                         </span>
                         <br />

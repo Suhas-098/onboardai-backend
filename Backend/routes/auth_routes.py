@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from models.user import User
 import jwt
 import datetime
-import bcrypt
+from werkzeug.security import check_password_hash
 from config.db import db
 
 auth_routes = Blueprint("auth_routes", __name__)
@@ -16,10 +16,19 @@ def login():
 
         user = User.query.filter_by(email=data["email"]).first()
 
-        if not user or not user.password_hash:
-            return jsonify({"message": "Invalid credentials"}), 401
+        # Debug logs
+        print(f"Login attempt for: {data['email']}")
+        
+        if not user:
+             print("User not found.")
+             return jsonify({"message": "Invalid credentials"}), 401
+             
+        if not user.password_hash:
+            print("ERROR: User has no password set.")
+            return jsonify({"message": "Account setup incomplete. Contact Admin."}), 403
 
-        if bcrypt.checkpw(data["password"].encode('utf-8'), user.password_hash.encode('utf-8')):
+        if check_password_hash(user.password_hash, data["password"]):
+            print("Password verified.")
             # Generate JWT
             token = jwt.encode({
                 "sub": str(user.id),
@@ -27,6 +36,8 @@ def login():
                 "name": user.name,
                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
             }, current_app.config['SECRET_KEY'], algorithm="HS256")
+            
+            print("JWT issued.")
 
             return jsonify({
                 "token": token,
@@ -34,10 +45,13 @@ def login():
                     "id": user.id,
                     "name": user.name,
                     "role": user.role,
-                    "department": user.department
+                    "department": user.department,
+                    "email": user.email,
+                    "avatar": user.avatar
                 }
             })
         
+        print("Password mismatch.")
         return jsonify({"message": "Invalid credentials"}), 401
     except Exception as e:
         print(f"Login error: {e}")

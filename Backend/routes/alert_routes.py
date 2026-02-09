@@ -50,6 +50,25 @@ def create_alert():
     )
     
     db.session.add(new_alert)
+    
+    # Enhanced: Also log to EmployeeNotification for the user dashboard
+    from models.employee_notification import EmployeeNotification
+    
+    # Map alert type to notification type
+    notif_type = "info"
+    if alert_type.lower() in ["critical", "warning"]:
+        notif_type = "warning"
+        
+    new_notif = EmployeeNotification(
+        user_id=target_user_id,
+        message=message,
+        type=notif_type,
+        is_read=False
+    )
+    db.session.add(new_notif)
+    
     db.session.commit()
+    
+    print(f"Reminder sent to user {target_user_id}: {message}") # Console log requirement
     
     return jsonify({"message": "Alert sent successfully", "alert": new_alert.to_dict()}), 201

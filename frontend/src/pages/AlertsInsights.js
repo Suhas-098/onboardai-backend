@@ -74,8 +74,7 @@ const AlertsInsights = () => {
     }, []);
 
     const alerts = risks.filter(r => r.risk === 'Critical' || r.risk === 'Warning');
-    const insights = risks.filter(r => r.prediction && r.prediction.includes('AI Prediction')); // Basic filter, can be refined
-
+    const insights = risks.filter(r => r.prediction && r.prediction.includes('AI Prediction'));
     return (
         <div className="space-y-12">
             <div className="flex items-center justify-between">
@@ -114,9 +113,9 @@ const AlertsInsights = () => {
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <h4 className="font-bold text-lg text-white">{item.risk_message}</h4>
+                                                    <h4 className="font-bold text-lg text-text-primary">{item.risk_message}</h4>
                                                     <p className="text-text-secondary mt-1">
-                                                        Employee <span className="text-white font-medium">{item.name}</span> is at <span className="text-danger font-medium">{item.risk} Risk</span> level.
+                                                        Employee <span className="text-text-primary font-medium">{item.name}</span> is at <span className="text-danger font-medium">{item.risk} Risk</span> level.
                                                     </p>
                                                 </div>
                                                 <span className="text-xs font-mono text-text-secondary bg-white/5 px-2 py-1 rounded">
@@ -161,12 +160,12 @@ const AlertsInsights = () => {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <h4 className="font-bold text-lg text-white">Prediction Analysis</h4>
+                                                <h4 className="font-bold text-lg text-text-primary">Prediction Analysis</h4>
                                                 <p className="text-text-secondary mt-1 text-lg italic">
                                                     "{item.prediction}"
                                                 </p>
                                                 <p className="text-sm text-text-secondary mt-2">
-                                                    Insight for <span className="text-white">{item.name}</span> based on current trajectory.
+                                                    Insight for <span className="text-text-primary">{item.name}</span> based on current trajectory.
                                                 </p>
                                             </div>
                                         </div>

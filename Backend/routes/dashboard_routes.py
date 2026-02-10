@@ -15,29 +15,18 @@ dashboard_routes = Blueprint("dashboard_routes", __name__)
 # -------------------------------------------------
 # 1️⃣ DASHBOARD SUMMARY (AI-AWARE)
 # -------------------------------------------------
+from services.alert_service import AlertService
+
 @dashboard_routes.route("/dashboard/summary", methods=["GET"])
 @check_role(["admin", "hr"])
 def dashboard_summary():
-    users = User.query.all()
-
-    summary = {
-        "total_users": 0,
-        "on_track": 0,
-        "at_risk": 0,
-        "delayed": 0
-    }
-
-    for user in users:
-        summary["total_users"] += 1
-        
-        if user.risk == "On Track":
-            summary["on_track"] += 1
-        elif user.risk == "At Risk":
-            summary["at_risk"] += 1
-        elif user.risk == "Delayed":
-            summary["delayed"] += 1
-
-    return jsonify(summary)
+    stats = AlertService.get_dashboard_stats()
+    return jsonify({
+        "total_users": stats["total_employees"],
+        "on_track": stats["on_track"],
+        "at_risk": stats["at_risk"],
+        "delayed": stats["delayed"]
+    })
 
 @dashboard_routes.route("/dashboard/risk-trend", methods=["GET"])
 @check_role(["admin", "hr"])
@@ -186,21 +175,22 @@ def dashboard_ai_explanations():
 @dashboard_routes.route("/dashboard/risk-heatmap", methods=["GET"])
 @check_role(["admin", "hr"])
 def get_risk_heatmap():
-    # Only consider employees for risk heatmap
-    users = User.query.filter(User.role.ilike("employee")).all()
-    # Group by department
+    user_risks = AlertService.get_user_risks()
     dept_risks = {}
     
-    for user in users:
+    for uid, data in user_risks.items():
+        user = data['user']
+        status = data['status']
+        
         dept = user.department or "Unassigned"
         if dept not in dept_risks:
             dept_risks[dept] = {"total_score": 0, "count": 0}
             
         # standardized score: On Track=10, At Risk=50, Delayed=90
         score = 10
-        if user.risk == "At Risk": score = 50
-        elif user.risk == "Delayed": score = 90
-        elif user.risk == "Critical": score = 100 # Handle if we have Critical
+        if status == "At Risk": score = 50
+        elif status == "Delayed": score = 90
+        elif status == "Critical": score = 100 
         
         dept_risks[dept]["total_score"] += score
         dept_risks[dept]["count"] += 1
@@ -268,21 +258,5 @@ def get_top_improved():
 @dashboard_routes.route("/dashboard/critical-focus", methods=["GET"])
 @check_role(["admin", "hr"])
 def get_critical_focus():
-    # Only return genuinely Critical/Delayed users
-    # We check for "Delayed" or "Critical" or "At Risk" with high scores
-    # For now, strict "Delayed" or explicit "Critical" string
-    critical_users = User.query.filter(
-        (User.risk == "Delayed") | (User.risk == "Critical")
-    ).all()
-    
-    results = []
-    for user in critical_users:
-        results.append({
-            "id": user.id,
-            "name": user.name,
-            "department": user.department,
-            "risk": "Critical",
-            "reason": user.risk_reason or "Missed critical deadlines"
-        })
-        
-    return jsonify(results)
+    stats = AlertService.get_dashboard_stats()
+    return jsonify(stats["critical_employees"])

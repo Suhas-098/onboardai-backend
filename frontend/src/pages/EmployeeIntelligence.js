@@ -56,11 +56,17 @@ const EmployeeIntelligence = () => {
     const [error, setError] = useState(null);
     const [openMenuId, setOpenMenuId] = useState(null);
 
+    const [criticalFocus, setCriticalFocus] = useState([]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await endpoints.employees.getAll();
-                setEmployees(response.data);
+                const [empRes, critRes] = await Promise.all([
+                    endpoints.employees.getAll(),
+                    endpoints.dashboard.getCriticalFocus()
+                ]);
+                setEmployees(empRes.data);
+                setCriticalFocus(critRes.data);
             } catch (err) {
                 setError('Failed to load employee intelligence data.');
                 console.error(err);
@@ -69,12 +75,29 @@ const EmployeeIntelligence = () => {
             }
         };
         fetchData();
+
+        // Poll every 10 seconds for real-time updates matches Dashboard
+        const interval = setInterval(fetchData, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     const filteredEmployees = employees.filter(emp =>
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Merge Real-Time Risk Data
+    const processedEmployees = filteredEmployees.map(emp => {
+        const isCritical = criticalFocus.some(c => c.id === emp.id);
+        if (isCritical) {
+            return {
+                ...emp,
+                risk: 'Critical',
+                risk_message: 'Missed critical deadline — immediate action required.'
+            };
+        }
+        return emp;
+    });
 
     const handleAction = (action, empId) => {
         console.log(`Action ${action} for ${empId}`);
@@ -148,7 +171,7 @@ const EmployeeIntelligence = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredEmployees.map((emp) => (
+                {processedEmployees.map((emp) => (
                     <Card key={emp.id} className="group relative overflow-visible">
                         {/* Note: overflow-visible for menu */}
                         <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

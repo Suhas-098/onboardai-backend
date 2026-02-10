@@ -9,6 +9,35 @@ const Reports = () => {
     const [weeklyTrend, setWeeklyTrend] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const handleDownload = async (type, filename) => {
+        try {
+            const storedUser = localStorage.getItem('onboardai_user');
+            const token = storedUser ? JSON.parse(storedUser).token : null;
+            const response = await fetch(`http://localhost:5000/api/reports/download/${type}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Download failed');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download Error:", error);
+            alert("Failed to download report. Please try again.");
+        }
+    };
+
     useEffect(() => {
         const fetchReports = async () => {
             try {
@@ -24,7 +53,11 @@ const Reports = () => {
                 setLoading(false);
             }
         };
+
         fetchReports();
+        // Poll every 10 seconds
+        const interval = setInterval(fetchReports, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) {
@@ -138,21 +171,31 @@ const Reports = () => {
 
                 <Card>
                     <h3 className="text-lg font-semibold mb-4 text-text-primary">Download Reports</h3>
-                    <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF or CSV format.</p>
-                    <Button
-                        variant="primary"
-                        className="w-full mb-3"
-                        onClick={() => alert("Report generation started! You will be notified when it's ready.")}
-                    >
-                        <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => alert("CSV export unavailable in demo mode.")}
-                    >
-                        <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
-                    </Button>
+                    <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF, CSV, or Excel format.</p>
+
+                    <div className="space-y-3">
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            onClick={() => handleDownload('pdf', 'onboardai-report.pdf')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => handleDownload('csv', 'onboardai-report.csv')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => handleDownload('excel', 'onboardai-report.xlsx')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Download Excel (.xlsx)
+                        </Button>
+                    </div>
                 </Card>
             </div>
         </div>

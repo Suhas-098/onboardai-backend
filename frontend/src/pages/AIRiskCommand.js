@@ -56,7 +56,12 @@ const AIRiskCommand = () => {
                 setLoading(false);
             }
         };
+
         fetchData();
+        // Poll every 10 seconds for real-time updates
+        const interval = setInterval(fetchData, 10000);
+
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -167,8 +172,8 @@ const AIRiskCommand = () => {
                                 <div key={item.department} className="p-3 rounded-lg bg-surface-light border border-white/5 flex flex-col items-center justify-center gap-1">
                                     <span className="text-xs text-text-secondary">{item.department}</span>
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${item.risk_level === 'High' ? 'bg-danger/20 text-danger' :
-                                            item.risk_level === 'Medium' ? 'bg-warning/20 text-warning' :
-                                                'bg-primary/20 text-primary'
+                                        item.risk_level === 'Medium' ? 'bg-warning/20 text-warning' :
+                                            'bg-primary/20 text-primary'
                                         }`}>
                                         {item.risk_level}
                                     </div>

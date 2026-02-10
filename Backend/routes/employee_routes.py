@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, request
+from datetime import datetime
 from models.user import User
 from models.progress import Progress
 from models.task import Task
 from models.activity_log import ActivityLog
+from models.employee_notification import EmployeeNotification
+from config.db import db
 from services.predictor import analyze_employee_risk
 from utils.auth_guard import check_role
 
@@ -179,6 +182,116 @@ def get_employee_tasks(user_id):
 @employee_routes.route("/employees/<int:user_id>/activity", methods=["GET"])
 @token_required
 def get_employee_activity(user_id):
-    logs = ActivityLog.query.filter_by(user_id=user_id).order_by(ActivityLog.timestamp.desc()).all()
-    results = [log.to_dict() for log in logs]
-    return jsonify(results)
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "Employee not found"}), 404
+        
+        logs = ActivityLog.query.filter_by(user_id=user_id).order_by(ActivityLog.timestamp.desc()).all()
+        results = []
+        for log in logs:
+            results.append({
+                "id": log.id,
+                "user_id": log.user_id,
+                "action": log.action,
+                "timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M") if log.timestamp else None,
+                "details": log.details
+            })
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+@employee_routes.route("/employees/<int:user_id>/send-alert", methods=["POST"])
+@check_role(["admin", "hr"])
+def send_employee_alert(user_id):
+    data = request.json
+    message = data.get("message", "Missed critical deadline — please complete your pending tasks ASAP.")
+    
+    # Create In-App Notification
+    notification = EmployeeNotification(
+        user_id=user_id,
+        type="in_app_alert",
+        message=message,
+        created_at=datetime.now()
+    )
+    db.session.add(notification)
+    
+    # Log Activity
+    log = ActivityLog(
+        user_id=user_id,
+        action="In-App Alert Sent",
+        timestamp=datetime.now(),
+        details=f"Message: {message}"
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({"message": "Alert sent successfully"}), 200
+
+@employee_routes.route("/employees/<int:user_id>/send-email", methods=["POST"])
+@check_role(["admin", "hr"])
+def send_employee_email(user_id):
+    import os
+    import threading
+    import requests as http_requests
+    
+    user = User.query.get(user_id)
+    if not user or not user.email:
+         return jsonify({"error": "User email not found"}), 404
+
+    data = request.json
+    subject = data.get("subject", "Missed critical deadline — action required")
+    body_html = data.get("html", f"<p>Dear {user.name},</p><p>This is a reminder that you have missed a critical onboarding deadline.</p>")
+    
+    try:
+        api_key = os.environ.get("RESEND_API_KEY")
+        if not api_key:
+            return jsonify({"error": "Server configuration error: Missing API Key"}), 500
+            
+        # Log in DB immediately
+        notification = EmployeeNotification(
+            user_id=user_id,
+            type="email",
+            message=f"Subject: {subject}",
+            created_at=datetime.now()
+        )
+        db.session.add(notification)
+        
+        log = ActivityLog(
+            user_id=user_id,
+            action="Email Sent via Resend",
+            timestamp=datetime.now(),
+            details=f"Sent to {user.email}"
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        # Send Email in Background Thread to avoid blocking
+        def send_async_email(key, to_email, subj, content):
+            try:
+                http_requests.post(
+                    "https://api.resend.com/emails",
+                    headers={
+                        "Authorization": f"Bearer {key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "from": "onboarding@resend.dev",
+                        "to": [to_email],
+                        "subject": subj,
+                        "html": content
+                    },
+                    timeout=15
+                )
+            except Exception as e:
+                print(f"[Resend] Email to {to_email} failed: {e}")
+
+        thread = threading.Thread(target=send_async_email, args=(api_key, user.email, subject, body_html))
+        thread.start()
+        
+        return jsonify({"message": "Email sent successfully via Resend"}), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to send email: {str(e)}"}), 500

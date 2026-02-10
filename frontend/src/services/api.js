@@ -38,6 +38,8 @@ export const endpoints = {
         getOne: (id) => api.get(`/employees/${id}`),
         getTasks: (id) => api.get(`/employees/${id}/tasks`),
         getActivity: (id) => api.get(`/employees/${id}/activity`),
+        sendAlert: (id, data) => api.post(`/employees/${id}/send-alert`, data),
+        sendEmail: (id, data) => api.post(`/employees/${id}/send-email`, data),
     },
     risks: {
         getAll: () => api.get('/risks'),

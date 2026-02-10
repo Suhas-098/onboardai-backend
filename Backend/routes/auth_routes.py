@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from models.user import User
 import jwt
 import datetime
+import bcrypt
 from werkzeug.security import check_password_hash
 from config.db import db
 
@@ -27,7 +28,13 @@ def login():
             print("ERROR: User has no password set.")
             return jsonify({"message": "Account setup incomplete. Contact Admin."}), 403
 
-        if check_password_hash(user.password_hash, data["password"]):
+        # Verify password using bcrypt (matching seed_auth.py)
+        # Handle cases where password_hash might be string or bytes
+        stored_hash = user.password_hash
+        if isinstance(stored_hash, str):
+            stored_hash = stored_hash.encode('utf-8')
+            
+        if bcrypt.checkpw(data["password"].encode('utf-8'), stored_hash):
             print("Password verified.")
             # Generate JWT
             token = jwt.encode({

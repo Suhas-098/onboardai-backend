@@ -1,9 +1,25 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, send_file, Response
 from models.user import User
 from models.progress import Progress
 from config.db import db
 from sqlalchemy import func
 from utils.auth_guard import check_role
+from services.alert_service import AlertService
+import io
+import csv
+from datetime import datetime
+import random
+
+# ReportLab imports for PDF
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+# OpenPyXL for Excel
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 reports_routes = Blueprint("reports_routes", __name__)
 
@@ -11,116 +27,49 @@ reports_routes = Blueprint("reports_routes", __name__)
 @check_role(["admin", "hr"])
 def get_reports_summary():
     try:
-        # Basic analytics for reports
-        total_users = User.query.filter(User.role.ilike("employee")).count() # Only count employees
-        depts = db.session.query(User.department, func.count(User.id)).filter(User.role.ilike("employee")).group_by(User.department).all()
+        stats = AlertService.get_dashboard_stats()
         
-        # Department breakdown
-        dept_stats = [{"department": d[0] or "Unassigned", "count": d[1]} for d in depts]
-        
-        # Risk breakdown logic - ideally should reuse risk_routes logic but for aggregation we can do a simplified pass
-        # Or better, fetch all users and calculate risks to be accurate
-        users = User.query.filter(User.role.ilike("employee")).all()
-        on_track = 0
-        at_risk = 0
-        delayed = 0
-        total_completion_acc = 0
-        
-        top_risk_employees = []
-        
-        from services.predictor import analyze_employee_risk
-        
-        for user in users:
-            progress_list = Progress.query.filter_by(user_id=user.id).all()
-            
-            # Recalculate risk for accuracy
-            total_items = len(progress_list)
-            completion = 0
-            missed = 0
-            delay_days = 0
-            if total_items > 0:
-                completion = sum(p.completion or 0 for p in progress_list) / total_items
-                missed = sum(1 for p in progress_list if (p.delay_days or 0) > 0)
-                delay_days = sum(p.delay_days or 0 for p in progress_list)
-            
-            total_completion_acc += completion
-            
-            analysis = analyze_employee_risk({
-                "completion": completion,
-                "delay_days": delay_days,
-                "missed_deadlines": missed
-            })
-            
-            risk_level = analysis["risk_level"]
-            
-            if risk_level == "Good":
-                on_track += 1
-            elif risk_level == "Critical":
-                delayed += 1
-                top_risk_employees.append({
-                    "name": user.name,
-                    "risk": "Critical",
-                    "reason": analysis["message"],
-                    "department": user.department
-                })
-            else: # Warning / Neutral
-                at_risk += 1
-                if risk_level == "Warning": # Only add warnings to top list if needed
-                     top_risk_employees.append({
-                        "name": user.name,
-                        "risk": "Warning",
-                        "reason": analysis["message"],
-                        "department": user.department
-                     })
-
-        avg_completion = round(total_completion_acc / total_users, 1) if total_users > 0 else 0
-        
-        # Sort top risk employees by severity (Critical first)
-        top_risk_employees.sort(key=lambda x: 0 if x["risk"] == "Critical" else 1)
-        top_3_risk = top_risk_employees[:3]
-
+        # Format for frontend
         return jsonify({
-            "total_employees": total_users,
-            "department_breakdown": dept_stats,
+            "total_employees": stats["total_employees"],
+            "department_breakdown": [{"department": k, "count": v} for k, v in stats["dept_counts"].items()],
             "risk_summary": {
-                "on_track": on_track,
-                "at_risk": at_risk,
-                "delayed": delayed
+                "on_track": stats["on_track"],
+                "at_risk": stats["at_risk"],
+                "delayed": stats["delayed"]
             },
             "averages": {
-                "completion": avg_completion,
+                "completion": stats["avg_completion"],
                 "time_to_onboard": "14 days"
             },
-            "top_risks": top_3_risk,
-            "weekly_trend": _generate_trend_data(users)
+            "top_risks": stats["critical_employees"][:5], 
+            "weekly_trend": _generate_trend_data()
         })
     except Exception as e:
         print(f"Error generating reports: {e}")
         return jsonify({"error": "Failed to generate report"}), 500
 
-def _generate_trend_data(users):
-    from datetime import datetime
-    import random
+def _generate_trend_data():
+    # Helper to generate trend data using AlertService risks
+    user_risks = AlertService.get_user_risks()
     
     current_risk_score = 0
-    if users:
+    total_users = len(user_risks)
+    
+    if total_users > 0:
         total_risk = 0
-        for u in users:
-            if u.risk == "On Track": total_risk += 10
-            elif u.risk == "At Risk": total_risk += 50
-            elif u.risk == "Delayed": total_risk += 90
+        for uid, data in user_risks.items():
+            status = data['status']
+            if status == "On Track": total_risk += 10
+            elif status == "At Risk": total_risk += 50
+            elif status == "Delayed": total_risk += 90
             else: total_risk += 10
-        current_risk_score = int(total_risk / len(users))
+        current_risk_score = int(total_risk / total_users)
         
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     trend_data = []
-    base_score = current_risk_score
     
-    # Scale risk count (not score) for the specific report chart "Risks per day"
-    # The report chart shows "Risks", dashboard shows "Risk Score".
-    # Let's simulate "Number of High Risk Events"
-    
-    base_risks = sum(1 for u in users if u.risk in ["At Risk", "Delayed"])
+    base_risks = sum(1 for uid, data in user_risks.items() if data['status'] in ["At Risk", "Delayed"])
     
     for i in range(6, -1, -1):
         variation = random.randint(-2, 2)
@@ -136,14 +85,213 @@ def _generate_trend_data(users):
 @check_role(["admin", "hr"])
 def get_weekly_risk_trend():
     try:
-        users = User.query.filter(User.role.ilike("employee")).all()
-        trend_data = _generate_trend_data(users)
+        trend_data = _generate_trend_data()
         return jsonify(trend_data)
     except Exception as e:
         print(f"Error generating risk trend: {e}")
         return jsonify({"error": "Failed to generate risk trend"}), 500
 
-@reports_routes.route("/reports/export", methods=["GET"])
+# ==========================================
+# DOWNLOAD ENDPOINTS
+# ==========================================
+
+@reports_routes.route("/reports/download/pdf", methods=["GET"])
 @check_role(["admin", "hr"])
-def export_report():
-    return jsonify({"message": "Report generation started. You will be notified when the PDF/CSV is ready."})
+def download_pdf():
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # 1. Title
+        title = Paragraph("OnboardAI — Enterprise Analytics Report", styles['Title'])
+        elements.append(title)
+        elements.append(Spacer(1, 12))
+        
+        timestamp = Paragraph(f"Report generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal'])
+        elements.append(timestamp)
+        elements.append(Spacer(1, 24))
+
+        # Collect Data from Single Source of Truth
+        stats = AlertService.get_dashboard_stats()
+        
+        # 2. Overview
+        elements.append(Paragraph("1. OVERVIEW", styles['Heading2']))
+        overview_data = [
+            ["Metric", "Value"],
+            ["Total Employees", str(stats["total_employees"])],
+            ["Avg Completion %", f"{stats['avg_completion']}%"],
+            ["On Track", str(stats["on_track"])],
+            ["At Risk / Delayed", str(stats["at_risk"] + stats["delayed"])]
+        ]
+        t_overview = Table(overview_data, colWidths=[200, 100])
+        t_overview.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (1, 0), colors.HexColor("#3B82F6")),
+            ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(t_overview)
+        elements.append(Spacer(1, 24))
+
+        # 3. Top At-Risk Employees
+        elements.append(Paragraph("2. TOP AT-RISK EMPLOYEES (Top 5)", styles['Heading2']))
+        
+        risky_employees_data = []
+        for emp in stats["critical_employees"]:
+            risky_employees_data.append([emp["name"], emp["department"], emp["risk"]])
+            
+        if risky_employees_data:
+            top_5 = [["Name", "Department", "Risk Level"]] + risky_employees_data[:5]
+            
+            t_risks = Table(top_5, colWidths=[150, 150, 100])
+            t_risks.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#EF4444")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(t_risks)
+        else:
+            elements.append(Paragraph("No high-risk employees detected.", styles['Normal']))
+        elements.append(Spacer(1, 24))
+
+        # 4. Weekly Risk Trend
+        elements.append(Paragraph("3. WEEKLY RISK TREND", styles['Heading2']))
+        trend_data = _generate_trend_data()
+        trend_table_data = [["Day", "Risks"]] + [[d["day"], str(d["risks"])] for d in trend_data]
+        t_trend = Table(trend_table_data, colWidths=[100, 100])
+        t_trend.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(t_trend)
+        elements.append(Spacer(1, 24))
+
+        # 5. Department Distribution
+        elements.append(Paragraph("4. DEPARTMENT DISTRIBUTION", styles['Heading2']))
+        dept_table_data = [["Department", "Employees"]] + [[k, str(v)] for k, v in stats["dept_counts"].items()]
+        t_dept = Table(dept_table_data, colWidths=[200, 100])
+        t_dept.setStyle(TableStyle([
+             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#10B981")),
+             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+             ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(t_dept)
+
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name="onboardai-report.pdf",
+            mimetype="application/pdf"
+        )
+
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
+
+@reports_routes.route("/reports/download/csv", methods=["GET"])
+@check_role(["admin", "hr"])
+def download_csv():
+    try:
+        user_risks = AlertService.get_user_risks()
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow(["employee_id", "name", "email", "department", "role", "risk_status", "risk_reasons"])
+        
+        for uid, data in user_risks.items():
+            user = data['user']
+            status = data['status']
+            reasons = "; ".join(data['reasons'])
+            
+            writer.writerow([
+                user.id,
+                user.name,
+                user.email,
+                user.department,
+                user.role,
+                status,
+                reasons
+            ])
+            
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=onboardai-report.csv"}
+        )
+
+    except Exception as e:
+         print(f"Error generating CSV: {e}")
+         return jsonify({"error": f"Failed to generate CSV: {str(e)}"}), 500
+
+@reports_routes.route("/reports/download/excel", methods=["GET"])
+@check_role(["admin", "hr"])
+def download_excel():
+    try:
+        user_risks = AlertService.get_user_risks()
+        stats = AlertService.get_dashboard_stats()
+
+        wb = openpyxl.Workbook()
+        
+        # Sheet 1: Employees
+        ws1 = wb.active
+        ws1.title = "Employees"
+        headers = ["employee_id", "name", "email", "department", "role", "risk_status", "risk_reasons"]
+        ws1.append(headers)
+        
+        # Style header
+        for cell in ws1[1]:
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+            
+        for uid, data in user_risks.items():
+            user = data['user']
+            status = data['status']
+            reasons = "; ".join(data['reasons'])
+            
+            ws1.append([
+                user.id,
+                user.name,
+                user.email,
+                user.department,
+                user.role,
+                status,
+                reasons
+            ])
+            
+        # Sheet 2: Summary
+        ws2 = wb.create_sheet(title="Summary")
+        ws2.append(["Metric", "Value"])
+        ws2.append(["Total Employees", stats["total_employees"]])
+        ws2.append(["Avg Completion %", stats["avg_completion"]])
+        ws2.append(["On Track", stats["on_track"]])
+        ws2.append(["At Risk", stats["at_risk"]])
+        ws2.append(["Delayed", stats["delayed"]])
+        
+        for cell in ws2[1]:
+             cell.font = Font(bold=True)
+        
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name="onboardai-report.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+    except Exception as e:
+        print(f"Error generating Excel: {e}")
+        return jsonify({"error": f"Failed to generate Excel: {str(e)}"}), 500

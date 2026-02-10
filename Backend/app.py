@@ -1,4 +1,9 @@
 from flask import Flask
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+
+load_dotenv() # Load environment variables from .env
 from config.init_db import init_database
 from routes.auth_routes import auth_routes
 from routes.user_routes import user_routes
@@ -10,10 +15,12 @@ from routes.employee_routes import employee_routes
 from routes.risk_routes import risk_routes
 from routes.alert_routes import alert_routes
 from routes.reports_routes import reports_routes
+from routes.admin_routes import admin_routes
 
 from config.config import Config
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 app.config.from_object(Config)
 
 init_database(app)
@@ -28,12 +35,14 @@ app.register_blueprint(employee_routes, url_prefix="/api")
 app.register_blueprint(risk_routes, url_prefix="/api")
 app.register_blueprint(alert_routes, url_prefix="/api")
 app.register_blueprint(reports_routes, url_prefix="/api")
+app.register_blueprint(admin_routes, url_prefix="/api")
 from routes.template_routes import template_routes
 app.register_blueprint(template_routes, url_prefix="/api")
 from routes.notification_routes import notification_routes
 from routes.search_routes import search_routes
 app.register_blueprint(notification_routes, url_prefix="/api")
 app.register_blueprint(search_routes, url_prefix="/api")
+
 
 @app.route("/")
 def home():

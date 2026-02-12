@@ -4,14 +4,15 @@ import {
     FileText,
     PlayCircle,
     AlertTriangle,
-    Upload,
-    Award
+    Upload
 } from 'lucide-react';
 import { endpoints } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { useState, useEffect } from 'react';
+import Timeline from '../../components/employee/Timeline';
+import { Sparkles } from 'lucide-react';
 
 const TaskItem = ({ task, onComplete, onContactHR, alerts = [] }) => {
     // Check if there is a warning/critical alert relevant to this task
@@ -73,8 +74,7 @@ const TaskItem = ({ task, onComplete, onContactHR, alerts = [] }) => {
     );
 };
 
-import Timeline from '../../components/employee/Timeline';
-import { Sparkles } from 'lucide-react';
+
 
 const AINudge = ({ nudge }) => (
     <div className={`p-3 rounded-lg border text-sm mb-3 ${nudge.type === 'warning' ? 'bg-warning/10 border-warning/20 text-warning' :

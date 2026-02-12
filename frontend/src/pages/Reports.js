@@ -27,6 +27,27 @@ const Reports = () => {
         fetchReports();
     }, []);
 
+    const handleDownload = async (type) => {
+        try {
+            let res;
+            if (type === 'pdf') res = await endpoints.reports.getPDF();
+            else if (type === 'csv') res = await endpoints.reports.getCSV();
+            else if (type === 'excel') res = await endpoints.reports.getExcel();
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `report.${type === 'excel' ? 'xlsx' : type}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert("Failed to download report.");
+        }
+    };
+
     if (loading) {
         return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
     }
@@ -114,6 +135,7 @@ const Reports = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* ... Department Distribution ... */}
                 <Card className="min-h-[250px]">
                     <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                         <PieChart className="w-5 h-5 text-secondary" /> Department Distribution
@@ -138,21 +160,30 @@ const Reports = () => {
 
                 <Card>
                     <h3 className="text-lg font-semibold mb-4 text-text-primary">Download Reports</h3>
-                    <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF or CSV format.</p>
-                    <Button
-                        variant="primary"
-                        className="w-full mb-3"
-                        onClick={() => alert("Report generation started! You will be notified when it's ready.")}
-                    >
-                        <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => alert("CSV export unavailable in demo mode.")}
-                    >
-                        <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
-                    </Button>
+                    <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF, CSV, or Excel format.</p>
+                    <div className="space-y-3">
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            onClick={() => handleDownload('pdf')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => handleDownload('csv')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => handleDownload('excel')}
+                        >
+                            <FileDown className="w-4 h-4 mr-2" /> Export Excel (.xlsx)
+                        </Button>
+                    </div>
                 </Card>
             </div>
         </div>

@@ -1,8 +1,5 @@
 from flask import Blueprint, jsonify, send_file
-from models.user import User
-from models.progress import Progress
-from config.db import db
-from sqlalchemy import func
+from services.alert_service import AlertService
 from utils.auth_guard import check_role
 import io
 import csv
@@ -33,143 +30,73 @@ except ImportError:
 
 reports_routes = Blueprint("reports_routes", __name__)
 
-reports_routes = Blueprint("reports_routes", __name__)
+# ------------------------------------------------------------------
+#  API ENDPOINTS (JSON)
+# ------------------------------------------------------------------
 
 @reports_routes.route("/reports/summary", methods=["GET"])
 @check_role(["admin", "hr"])
 def get_reports_summary():
-    try:
-        # Basic analytics for reports
-        total_users = User.query.filter(User.role.ilike("employee")).count() # Only count employees
-        depts = db.session.query(User.department, func.count(User.id)).filter(User.role.ilike("employee")).group_by(User.department).all()
-        
-        # Department breakdown
-        dept_stats = [{"department": d[0] or "Unassigned", "count": d[1]} for d in depts]
-        
-        # Risk breakdown logic - ideally should reuse risk_routes logic but for aggregation we can do a simplified pass
-        # Or better, fetch all users and calculate risks to be accurate
-        users = User.query.filter(User.role.ilike("employee")).all()
-        on_track = 0
-        at_risk = 0
-        delayed = 0
-        total_completion_acc = 0
-        
-        top_risk_employees = []
-        
-        from services.predictor import analyze_employee_risk
-        
-        for user in users:
-            progress_list = Progress.query.filter_by(user_id=user.id).all()
-            
-            # Recalculate risk for accuracy
-            total_items = len(progress_list)
-            completion = 0
-            missed = 0
-            delay_days = 0
-            if total_items > 0:
-                completion = sum(p.completion or 0 for p in progress_list) / total_items
-                missed = sum(1 for p in progress_list if (p.delay_days or 0) > 0)
-                delay_days = sum(p.delay_days or 0 for p in progress_list)
-            
-            total_completion_acc += completion
-            
-            analysis = analyze_employee_risk({
-                "completion": completion,
-                "delay_days": delay_days,
-                "missed_deadlines": missed
-            })
-            
-            risk_level = analysis["risk_level"]
-            
-            if risk_level == "Good":
-                on_track += 1
-            elif risk_level == "Critical":
-                delayed += 1
-                top_risk_employees.append({
-                    "name": user.name,
-                    "risk": "Critical",
-                    "reason": analysis["message"],
-                    "department": user.department
-                })
-            else: # Warning / Neutral
-                at_risk += 1
-                if risk_level == "Warning": # Only add warnings to top list if needed
-                     top_risk_employees.append({
-                        "name": user.name,
-                        "risk": "Warning",
-                        "reason": analysis["message"],
-                        "department": user.department
-                     })
+    """
+    Returns aggregated stats for the reports dashboard.
+    Constructs a specific response format required by Reports.js frontend.
+    """
+    # 1. Get Base Stats
+    stats = AlertService.get_dashboard_stats()
+    
+    # 2. Get User Risks for granular data (Top Risks, Averages)
+    users = AlertService.get_user_risks()
+    
+    # Calculate Average Completion
+    total_completion = sum(u['completion'] for u in users)
+    avg_completion = round(total_completion / len(users), 1) if users else 0
+    
+    # Identify Top Risks
+    # Priority: Critical > Delayed > At Risk > On Track
+    risk_order = {"Critical": 0, "Delayed": 1, "At Risk": 2, "On Track": 3}
+    sorted_users = sorted(users, key=lambda x: risk_order.get(x['risk'], 4))
+    
+    # Filter only risky users for the "Top Risks" list (optional, but good for focus)
+    # The frontend just maps them, so we'll send the top 5 worst status
+    top_risks = sorted_users[:5] 
 
-        avg_completion = round(total_completion_acc / total_users, 1) if total_users > 0 else 0
-        
-        # Sort top risk employees by severity (Critical first)
-        top_risk_employees.sort(key=lambda x: 0 if x["risk"] == "Critical" else 1)
-        top_3_risk = top_risk_employees[:3]
-
-        return jsonify({
-            "total_employees": total_users,
-            "department_breakdown": dept_stats,
-            "risk_summary": {
-                "on_track": on_track,
-                "at_risk": at_risk,
-                "delayed": delayed
-            },
-            "averages": {
-                "completion": avg_completion,
-                "time_to_onboard": "14 days"
-            },
-            "top_risks": top_3_risk,
-            "weekly_trend": _generate_trend_data(users)
-        })
-    except Exception as e:
-        print(f"Error generating reports: {e}")
-        return jsonify({"error": "Failed to generate report"}), 500
-
-def _generate_trend_data(users):
-    from datetime import datetime
-    import random
+    # Calculate Department Breakdown
+    depts = {}
+    for u in users:
+        d = u['department'] or "Unassigned"
+        depts[d] = depts.get(d, 0) + 1
     
-    current_risk_score = 0
-    if users:
-        total_risk = 0
-        for u in users:
-            if u.risk == "On Track": total_risk += 10
-            elif u.risk == "At Risk": total_risk += 50
-            elif u.risk == "Delayed": total_risk += 90
-            else: total_risk += 10
-        current_risk_score = int(total_risk / len(users))
-        
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    trend_data = []
-    base_score = current_risk_score
+    department_breakdown = [{"department": d, "count": c} for d, c in depts.items()]
     
-    # Scale risk count (not score) for the specific report chart "Risks per day"
-    # The report chart shows "Risks", dashboard shows "Risk Score".
-    # Let's simulate "Number of High Risk Events"
+    # Construct Response matching Reports.js expectations
+    response = {
+        "total_employees": stats.get("total_users", 0),
+        "averages": {
+            "completion": avg_completion
+        },
+        "risk_summary": {
+            "on_track": stats.get("on_track", 0),
+            "at_risk": stats.get("at_risk", 0),
+            "delayed": stats.get("delayed", 0) 
+        },
+        "top_risks": top_risks,
+        "department_breakdown": department_breakdown
+    }
     
-    base_risks = sum(1 for u in users if u.risk in ["At Risk", "Delayed"])
-    
-    for i in range(6, -1, -1):
-        variation = random.randint(-2, 2)
-        day_risks = max(0, base_risks + variation)
-        if i == 0: day_risks = base_risks # Today matches actual
-        
-        day_label = days[(datetime.now().weekday() - i) % 7]
-        trend_data.append({"day": day_label, "risks": day_risks})
-        
-    return trend_data
+    return jsonify(response)
 
 @reports_routes.route("/reports/weekly-risk-trend", methods=["GET"])
 @check_role(["admin", "hr"])
 def get_weekly_risk_trend():
-    try:
-        users = User.query.filter(User.role.ilike("employee")).all()
-        trend_data = _generate_trend_data(users)
-        return jsonify(trend_data)
-    except Exception as e:
-        print(f"Error generating risk trend: {e}")
-        return jsonify({"error": "Failed to generate risk trend"}), 500
+    """
+    Returns trend data for the chart.
+    """
+    trend = AlertService.get_risk_trend()
+    return jsonify(trend)
+
+# ------------------------------------------------------------------
+#  DOWNLOAD ENDPOINTS (PDF, CSV, EXCEL)
+# ------------------------------------------------------------------
 
 @reports_routes.route("/reports/download/pdf", methods=["GET"])
 @check_role(["admin", "hr"])
@@ -178,35 +105,21 @@ def download_pdf():
         return jsonify({"error": "Server missing ReportLab library. Please install reportlab."}), 500
 
     try:
-        # Data Fetching (Keep existing logic)
-        users = User.query.filter(User.role.ilike("employee")).all()
-        # ... (rest of data fetching is same, implied context)
-
-        total_employees = len(users)
-        on_track = sum(1 for u in users if u.risk == "On Track")
-        at_risk = sum(1 for u in users if u.risk == "At Risk")
-        delayed = sum(1 for u in users if u.risk in ["Delayed", "Critical"])
+        # 1. Fetch Data via Service
+        stats = AlertService.get_dashboard_stats()
+        users = AlertService.get_user_risks()
         
-        # Calculate completion accurately from Progress if possible, else 0 for now as per previous
-        # For this upgraded report, let's try to get real avg completion if feasible or stick to placeholder if data missing
-        total_completion = 0
-        count_with_progress = 0
-        for u in users:
-            progs = Progress.query.filter_by(user_id=u.id).all()
-            if progs:
-                u_avg = sum(p.completion or 0 for p in progs) / len(progs)
-                total_completion += u_avg
-                count_with_progress += 1
-        
-        avg_completion = round(total_completion / count_with_progress, 1) if count_with_progress > 0 else 0
+        # Calculate avg completion from user list
+        total_completion = sum(u['completion'] for u in users)
+        avg_completion = round(total_completion / len(users), 1) if users else 0
 
         # Department Stats
         depts = {}
         for u in users:
-            d = u.department or "Unassigned"
+            d = u['department'] or "Unassigned"
             depts[d] = depts.get(d, 0) + 1
 
-        # PDF Setup
+        # 2. PDF Setup
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         elements = []
@@ -227,15 +140,22 @@ def download_pdf():
             textColor=colors.HexColor("#64748B")
         )
 
-        # 1. Header Section
+        # Header Section
         elements.append(Paragraph("OnboardAI Enterprise Report", title_style))
         elements.append(Paragraph(f"Generated on: {datetime.datetime.now().strftime('%B %d, %Y')}", subtitle_style))
         elements.append(Spacer(1, 20))
 
-        # 2. KPI Cards (As a Table)
+        # KPI Cards (As a Table)
+        # stats is dict: total_users, on_track, at_risk, delayed
         kpi_data = [
             ["Total Employees", "Avg Completion", "On Track", "At Risk", "Critical"],
-            [str(total_employees), f"{avg_completion}%", str(on_track), str(at_risk), str(delayed)]
+            [
+                str(stats.get("total_users", 0)), 
+                f"{avg_completion}%", 
+                str(stats.get("on_track", 0)), 
+                str(stats.get("at_risk", 0)), 
+                str(stats.get("delayed", 0))
+            ]
         ]
         
         kpi_table = Table(kpi_data, colWidths=[1.5*inch]*5)
@@ -263,9 +183,8 @@ def download_pdf():
         elements.append(kpi_table)
         elements.append(Spacer(1, 25))
 
-        # 3. Charts Section (Side by Side)
+        # Charts Section
         if HAS_MATPLOTLIB:
-            # Helper to create chart image
             def create_chart_img(fig):
                 img_buf = io.BytesIO()
                 fig.savefig(img_buf, format='png', dpi=100, bbox_inches='tight')
@@ -276,7 +195,13 @@ def download_pdf():
                 # Risk Dist Chart
                 plt.figure(figsize=(4, 3))
                 colors_list = ['#10B981', '#F59E0B', '#EF4444']
-                plt.pie([max(1, on_track), max(0, at_risk), max(0, delayed)], labels=['On Track', 'At Risk', 'Critical'], colors=colors_list, autopct='%1.1f%%')
+                # Data from stats service
+                PieData = [
+                    max(1, stats.get("on_track", 0)), 
+                    max(0, stats.get("at_risk", 0)), 
+                    max(0, stats.get("delayed", 0))
+                ]
+                plt.pie(PieData, labels=['On Track', 'At Risk', 'Critical'], colors=colors_list, autopct='%1.1f%%')
                 plt.title('Risk Distribution')
                 risk_img = create_chart_img(plt.gcf())
                 plt.close()
@@ -307,28 +232,23 @@ def download_pdf():
             
         elements.append(Spacer(1, 20))
 
-        # 4. Top Risks Table
+        # Top Risks Table
         elements.append(Paragraph("Top Attention Needed", styles['Heading2']))
         elements.append(Spacer(1, 10))
         
         # Sort by risk severity
         risk_order = {"Critical": 0, "Delayed": 1, "At Risk": 2, "On Track": 3}
-        sorted_users = sorted(users, key=lambda x: risk_order.get(x.risk, 4))
+        # users is a list of dicts now
+        sorted_users = sorted(users, key=lambda x: risk_order.get(x['risk'], 4))
         top_risks = sorted_users[:5]
         
         table_data = [["Name", "Department", "Risk Status", "Avg Completion"]]
         for u in top_risks:
-            # Get completion for this user
-            u_progs = Progress.query.filter_by(user_id=u.id).all()
-            u_comp = 0
-            if u_progs:
-                u_comp = sum(p.completion or 0 for p in u_progs) / len(u_progs)
-            
             table_data.append([
-                u.name,
-                u.department or "N/A",
-                u.risk or "Unknown",
-                f"{int(u_comp)}%"
+                u['name'],
+                u['department'] or "N/A",
+                u['risk'],
+                f"{int(u['completion'])}%"
             ])
             
         risk_table = Table(table_data, colWidths=[2*inch, 2*inch, 1.5*inch, 1.5*inch])
@@ -354,7 +274,6 @@ def download_pdf():
 
         elements.append(risk_table)
         
-        # Build PDF
         doc.build(elements)
         buffer.seek(0)
         
@@ -368,61 +287,49 @@ def download_pdf():
 @check_role(["admin", "hr"])
 def download_csv():
     try:
-        import io
-        import csv
+        users = AlertService.get_user_risks()
         
-        users = User.query.filter(User.role.ilike("employee")).all()
-        
+        # Generate CSV
         output = io.StringIO()
         writer = csv.writer(output)
-        
-        # Header
-        writer.writerow(["ID", "Name", "Email", "Department", "Role", "Risk Status", "Risk Reason", "Joined Date"])
-        
-        # Rows
+        writer.writerow(["Name", "Email", "Department", "Role", "Risk Status", "Avg Completion"])
+
         for u in users:
             writer.writerow([
-                u.id, 
-                u.name, 
-                u.email, 
-                u.department, 
-                u.role, 
-                u.risk, 
-                u.risk_reason,
-                u.joined_date
+                u['name'], 
+                "N/A", 
+                u['department'], 
+                "Employee", 
+                u['risk'], 
+                f"{u['completion']}%"
             ])
-            
-        from flask import make_response
+
         output.seek(0)
-        response = make_response(output.getvalue())
-        response.headers["Content-Disposition"] = "attachment; filename=report.csv"
-        response.headers["Content-type"] = "text/csv"
-        return response
         
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="employees_report.csv"
+        )
     except Exception as e:
-        print(f"CSV Error: {e}")
-        return jsonify({"error": "Failed to generate CSV"}), 500
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @reports_routes.route("/reports/download/excel", methods=["GET"])
 @check_role(["admin", "hr"])
 def download_excel():
     try:
         import pandas as pd
-        import io
         
-        users = User.query.filter(User.role.ilike("employee")).all()
-        
+        users = AlertService.get_user_risks()
         data = []
         for u in users:
             data.append({
-                "ID": u.id,
-                "Name": u.name,
-                "Email": u.email,
-                "Department": u.department,
-                "Role": u.role,
-                "Risk Status": u.risk,
-                "Risk Reason": u.risk_reason,
-                "Joined Date": u.joined_date
+                "Name": u['name'],
+                "Department": u['department'],
+                "Risk Status": u['risk'],
+                "Completion": f"{u['completion']}%"
             })
             
         df = pd.DataFrame(data)
@@ -433,16 +340,14 @@ def download_excel():
             
         output.seek(0)
         
-        from flask import send_file
         return send_file(
-            output, 
-            as_attachment=True, 
-            download_name="report.xlsx", 
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="employees_report.xlsx"
         )
-        
     except ImportError:
-        return jsonify({"error": "pandas or openpyxl not installed"}), 500
+        return jsonify({"error": "Pandas/Openpyxl not installed"}), 500
     except Exception as e:
-        print(f"Excel Error: {e}")
-        return jsonify({"error": f"Failed to generate Excel: {str(e)}"}), 500
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500

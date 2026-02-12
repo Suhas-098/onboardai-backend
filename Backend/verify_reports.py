@@ -61,5 +61,19 @@ def verify_reports():
                 print(f"❌ Excel Download: Failed ({res_excel.status_code})")
                 print(res_excel.data[:100])
 
+            # Test Summary Structure (Frontend Requirement)
+            print("Testing Summary Endpoint...")
+            res_summary = client.get('/api/reports/summary', headers=headers)
+            if res_summary.status_code == 200:
+                data = res_summary.json
+                required = ["total_employees", "averages", "risk_summary", "top_risks", "department_breakdown"]
+                missing = [k for k in required if k not in data]
+                if not missing:
+                    print("✅ Summary Endpoint: Success (Schema Valid)")
+                else:
+                    print(f"❌ Summary Endpoint: Missing keys {missing}")
+            else:
+                print(f"❌ Summary Endpoint: Failed ({res_summary.status_code})")
+
 if __name__ == "__main__":
     verify_reports()

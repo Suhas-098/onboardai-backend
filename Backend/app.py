@@ -37,7 +37,7 @@ app.register_blueprint(search_routes, url_prefix="/api")
 
 @app.route("/")
 def home():
-    return "🚀 OnboardAI Backend Running..."
+    return "🚀 OnboardAI Backend Running.."
 
 if __name__ == "__main__":
     app.run(debug=True)

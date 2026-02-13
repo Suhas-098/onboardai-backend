@@ -6,31 +6,11 @@ from datetime import datetime
 
 alert_routes = Blueprint("alert_routes", __name__)
 
+from services.alert_service import AlertService
+
 @alert_routes.route("/alerts", methods=["GET"])
 def get_alerts():
-    # 1. Fetch Persisted Alerts from DB
-    db_alerts = Alert.query.order_by(Alert.created_at.desc()).all()
-    results = [alert.to_dict() for alert in db_alerts]
-
-    # 3. Missed Deadline Alerts
-    from models.task import Task
-    overdue_tasks = Task.query.filter(
-        Task.status.ilike("Pending"),
-        Task.due_date < datetime.now()
-    ).all()
-    
-    for task in overdue_tasks:
-        user = User.query.get(task.assigned_to)
-        results.append({
-            "id": f"overdue_{task.id}",
-            "level": "Warning",
-            "title": "Missed Deadline",
-            "time": "Overdue",
-            "desc": f"Employee {user.name if user else 'Unknown'} missed deadline for: {task.title}.",
-            "target_user_id": task.assigned_to
-        })
-    
-    return jsonify(results)
+    return jsonify(AlertService.get_all_alerts())
 
 @alert_routes.route("/alerts", methods=["POST"])
 def create_alert():

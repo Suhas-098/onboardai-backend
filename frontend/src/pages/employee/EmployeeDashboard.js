@@ -4,7 +4,8 @@ import {
     FileText,
     PlayCircle,
     AlertTriangle,
-    Upload
+    Upload,
+    // Award
 } from 'lucide-react';
 import { endpoints } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +13,6 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { useState, useEffect } from 'react';
 import Timeline from '../../components/employee/Timeline';
-import SkeletonLoader from '../../components/SkeletonLoader';
 import { Sparkles } from 'lucide-react';
 
 const TaskItem = ({ task, onComplete, onContactHR, alerts = [] }) => {
@@ -190,27 +190,7 @@ const EmployeeDashboard = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="space-y-8">
-                <div className="h-20 w-1/3"><SkeletonLoader /></div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="h-10 w-full"><SkeletonLoader /></div>
-                        <div className="space-y-3">
-                            <SkeletonLoader type="card" className="h-24" />
-                            <SkeletonLoader type="card" className="h-24" />
-                            <SkeletonLoader type="card" className="h-24" />
-                        </div>
-                    </div>
-                    <div className="space-y-6">
-                        <SkeletonLoader type="card" className="h-32" />
-                        <SkeletonLoader type="card" className="h-40" />
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <div className="p-8 text-center text-text-secondary">Loading your workspace...</div>;
 
     return (
         <div className="space-y-8">
@@ -369,5 +349,3 @@ const EmployeeDashboard = () => {
 };
 
 export default EmployeeDashboard;
-
-

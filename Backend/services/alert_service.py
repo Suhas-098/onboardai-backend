@@ -1,110 +1,151 @@
+from models.alert import Alert
+from models.task import Task
 from models.user import User
 from models.progress import Progress
-from models.task import Task
-from flask import jsonify
+from config.db import db
 from datetime import datetime
-import random
-from sqlalchemy import func
 
 class AlertService:
-    
     @staticmethod
-    def get_dashboard_stats():
+    def get_all_alerts():
         """
-        Returns aggregated stats for the dashboard:
-        - Total Users
-        - On Track
-        - At Risk
-        - Delayed
+        Fetches all active alerts:
+        1. Persisted Alerts from DB (Alert table)
+        2. Dynamic "Missed Deadline" alerts from Tasks table
         """
-        users = User.query.all()
-        summary = {
-            "total_users": 0,
-            "on_track": 0,
-            "at_risk": 0,
-            "delayed": 0
-        }
+        results = []
 
-        for user in users:
-            # Filter for employees only? The original dashboard route didn't look like it filtered, 
-            # but usually we only care about employees. reports_routes filtered for 'employee'.
-            # Let's align with reports_routes and filter for employees to be safe/correct for reports.
-            if user.role and user.role.lower() not in ['admin', 'hr']:
-                summary["total_users"] += 1
-                if user.risk == "On Track":
-                    summary["on_track"] += 1
-                elif user.risk == "At Risk":
-                    summary["at_risk"] += 1
-                elif user.risk in ["Delayed", "Critical"]:
-                    summary["delayed"] += 1
-        
-        return summary
+        # 1. Fetch Persisted Alerts
+        try:
+            db_alerts = Alert.query.order_by(Alert.created_at.desc()).all()
+            for alert in db_alerts:
+                results.append(alert.to_dict())
+        except Exception as e:
+            print(f"Error fetching DB alerts: {e}")
+
+        # 2. Check for Overdue Tasks (Missed Deadlines)
+        try:
+            overdue_tasks = Task.query.filter(
+                Task.status.ilike("Pending"),
+                Task.due_date < datetime.now()
+            ).all()
+
+            for task in overdue_tasks:
+                user = User.query.get(task.assigned_to)
+                
+                # Create a dynamic alert object
+                # Ensure structure matches what frontend expects
+                results.append({
+                    "id": f"overdue_{task.id}",
+                    "level": "Critical", # Overdue = Critical
+                    "type": "Critical",
+                    "title": "Missed Deadline",
+                    "message": f"Employee {user.name if user else 'Unknown'} missed deadline for: {task.title}.",
+                    "time": "Overdue",
+                    "target_user_id": task.assigned_to,
+                    "created_at": datetime.now().isoformat()
+                })
+        except Exception as e:
+            print(f"Error fetching overdue tasks: {e}")
+
+        return results
 
     @staticmethod
     def get_user_risks():
         """
-        Returns list of employee objects with their calculated risk metrics.
-        Used for reports and risk dashboard.
+        Determines the risk status for ALL employees based on active alerts.
+        Returns: dict { user_id: { "status": "...", "reasons": [...] } }
         """
         users = User.query.filter(User.role.ilike("employee")).all()
-        results = []
+        user_risks = {}
+        
+        # Get all alerts first to avoid N+1 queries ideally, 
+        # but user count is small so filtering in python is fine for now.
+        all_alerts = AlertService.get_all_alerts()
 
         for user in users:
-            try:
-                # Basic User Info
-                user_data = {
+            status = "On Track"
+            reasons = []
+
+            # Filter alerts for this user
+            user_alerts = [a for a in all_alerts if a.get('target_user_id') == user.id]
+
+            for alert in user_alerts:
+                lvl = alert.get('level', '').lower()
+                msg = alert.get('message', '')
+                
+                if lvl in ['critical', 'delayed']:
+                    status = "Delayed" # Critical alert = Delayed status
+                    reasons.append(msg)
+                elif lvl == 'warning' and status != 'Delayed':
+                    status = "At Risk" # Warning alert = At Risk status (unless already Delayed)
+                    reasons.append(msg)
+
+            user_risks[user.id] = {
+                "user": user,
+                "status": status,
+                "reasons": reasons
+            }
+            
+        return user_risks
+
+    @staticmethod
+    def get_dashboard_stats():
+        """
+        Aggregates stats for Dashboard and Reports.
+        Single Source of Truth.
+        """
+        user_risks = AlertService.get_user_risks()
+        
+        stats = {
+            "total_employees": len(user_risks),
+            "on_track": 0,
+            "at_risk": 0,
+            "delayed": 0,
+            "critical_employees": [], # For Critical Focus & Top Risks
+            "dept_counts": {} # For distribution
+        }
+        
+        # Also calculate global completion average
+        total_completion = 0
+        total_users_for_avg = 0 # Only count users who have progress? or all? 
+        # Usually all employees.
+        
+        for uid, data in user_risks.items():
+            user = data['user']
+            status = data['status']
+            
+            # Risk Counts
+            if status == "On Track":
+                stats["on_track"] += 1
+            elif status == "At Risk":
+                stats["at_risk"] += 1
+            elif status == "Delayed":
+                stats["delayed"] += 1
+                
+            # Critical / Delayed List
+            if status in ["Delayed", "Critical"]: # Catch both just in case
+                stats["critical_employees"].append({
                     "id": user.id,
                     "name": user.name,
                     "department": user.department,
-                    "risk": user.risk or "Unknown",
-                    "completion": 0
-                }
+                    "risk": "Critical", # UI expects "Critical" usually for the red badge
+                    "reason": data['reasons'][0] if data['reasons'] else "Missed Critical Deadline"
+                })
                 
-                # Fetch Progress
-                progs = Progress.query.filter_by(user_id=user.id).all()
-                if progs:
-                    user_data["completion"] = sum(p.completion or 0 for p in progs) / len(progs)
-                
-                results.append(user_data)
-            except Exception as e:
-                print(f"Error processing user {user.id} in AlertService: {e}")
-                
-        return results
+            # Department Counts
+            dept = user.department or "Unassigned"
+            stats["dept_counts"][dept] = stats["dept_counts"].get(dept, 0) + 1
+            
+            # Completion
+            # We need to query progress for this user
+            # To avoid N+1, ideally we'd join, but keeping it simple for now as requested
+            user_progress = Progress.query.filter_by(user_id=user.id).all()
+            if user_progress:
+                user_avg = sum(p.completion or 0 for p in user_progress) / len(user_progress)
+                total_completion += user_avg
+            total_users_for_avg += 1
 
-    @staticmethod
-    def get_risk_trend():
-        """
-        Returns 7-day risk trend data.
-        Currently simulated based on current state as per dashboard logic.
-        """
-        users = User.query.filter(User.role.ilike("employee")).all()
-        current_risk_score = 0
+        stats["avg_completion"] = round(total_completion / total_users_for_avg, 1) if total_users_for_avg > 0 else 0
         
-        if users:
-            total_risk = 0
-            count = 0
-            for u in users:
-                count += 1
-                if u.risk == "On Track": total_risk += 10
-                elif u.risk == "At Risk": total_risk += 50
-                elif u.risk in ["Delayed", "Critical"]: total_risk += 90
-                else: total_risk += 10
-            
-            if count > 0:
-                current_risk_score = int(total_risk / count)
-
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        trend_data = []
-        base_score = current_risk_score
-        
-        for i in range(6, -1, -1):
-            variation = random.randint(-15, 15)
-            if i == 0: variation = 0 # Today matches exactly
-            
-            day_score = max(0, min(100, base_score + variation))
-            
-            # Simple day label logic from dashboard_routes
-            day_label = days[(datetime.now().weekday() - i) % 7]
-            trend_data.append({"name": day_label, "risk": day_score})
-            
-        return trend_data
+        return stats

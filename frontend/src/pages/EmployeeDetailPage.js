@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Mail, Calendar, Target, Clock, AlertTriangle, Shield, CheckCircle, ArrowLeft, Send, Lock } from 'lucide-react';
 import { endpoints } from '../services/api';
@@ -6,7 +6,6 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import ActivityLog from '../components/ActivityLog';
-import SkeletonLoader from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 const EmployeeDetailPage = () => {
@@ -21,10 +20,16 @@ const EmployeeDetailPage = () => {
     const [error, setError] = useState(null);
 
     // Alert Modal State
+    // Alert Modal State
     const [showAlertModal, setShowAlertModal] = useState(false);
-    const [alertMessage, setAlertMessage] = useState("");
-    const [alertType, setAlertType] = useState("Warning");
+    const [alertMessage, setAlertMessage] = useState("Missed critical deadline — please complete your pending tasks ASAP.");
     const [sendingAlert, setSendingAlert] = useState(false);
+
+    // Email Modal State
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailSubject, setEmailSubject] = useState("Missed critical deadline — action required");
+    const [emailBody, setEmailBody] = useState(""); // Will be set on open
+    const [sendingEmail, setSendingEmail] = useState(false);
 
     // Edit Task State
     const [editTask, setEditTask] = useState(null);
@@ -61,14 +66,13 @@ const EmployeeDetailPage = () => {
         if (!alertMessage) return;
         setSendingAlert(true);
         try {
-            await endpoints.alerts.create({
-                target_user_id: userId,
-                type: alertType,
+            // New endpoint: In-App Only
+            await endpoints.employees.sendAlert(userId, {
                 message: alertMessage
             });
             setShowAlertModal(false);
-            setAlertMessage("");
-            alert("Alert sent successfully!");
+            setAlertMessage("Missed critical deadline — please complete your pending tasks ASAP.");
+            alert("In-App Alert sent successfully!");
         } catch (err) {
             console.error(err);
             alert("Failed to send alert.");
@@ -77,23 +81,36 @@ const EmployeeDetailPage = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                <div className="h-10 w-32"><SkeletonLoader /></div>
-                <SkeletonLoader type="card" className="h-40" />
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
-                        <SkeletonLoader type="card" className="h-96" />
-                        <SkeletonLoader type="card" className="h-40" />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <SkeletonLoader type="card" className="h-96" />
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const handleSendEmail = async () => {
+        if (!emailSubject || !emailBody) return;
+        setSendingEmail(true);
+        try {
+            // New endpoint: Resend Only
+            await endpoints.employees.sendEmail(userId, {
+                subject: emailSubject,
+                html: emailBody
+            });
+            setShowEmailModal(false);
+            alert("Email sent successfully via Resend!");
+        } catch (err) {
+            console.error(err);
+            alert("Failed to send email.");
+        } finally {
+            setSendingEmail(false);
+        }
+    };
+
+    const openEmailModal = () => {
+        // Set default template with name
+        setEmailBody(`<p>Dear ${employee.name},</p>
+<p>This is a reminder that you have missed a critical onboarding deadline. 
+Please complete your pending tasks at the earliest to avoid further delays.</p>
+<p>If you have any questions, please contact HR.</p>
+<p>Best regards,<br>HR Team</p>`);
+        setShowEmailModal(true);
+    };
+
+    if (loading) return <div className="p-8 text-center text-text-secondary">Loading Profile...</div>;
     if (error) return <div className="p-8 text-center text-danger">{error}</div>;
     if (!employee) return <div className="p-8 text-center">Employee not found.</div>;
 
@@ -113,9 +130,14 @@ const EmployeeDetailPage = () => {
                     <ArrowLeft className="w-4 h-4" /> Back to Employees
                 </Button>
                 {!isAdmin && (
-                    <Button variant="danger" onClick={() => setShowAlertModal(true)}>
-                        <AlertTriangle className="w-4 h-4 mr-2" /> Send Alert
-                    </Button>
+                    <div className="flex gap-3">
+                        <Button variant="danger" onClick={() => setShowAlertModal(true)}>
+                            <AlertTriangle className="w-4 h-4 mr-2" /> Send Alert
+                        </Button>
+                        <Button variant="primary" onClick={openEmailModal}>
+                            <Mail className="w-4 h-4 mr-2" /> Send Email
+                        </Button>
+                    </div>
                 )}
             </div>
 
@@ -303,7 +325,7 @@ const EmployeeDetailPage = () => {
                                             console.error(e);
                                             alert("Failed to assign task");
                                         }
-                                    }} isLoading={loading}>
+                                    }}>
                                         + Assign Task
                                     </Button>
                                 </div>
@@ -315,37 +337,66 @@ const EmployeeDetailPage = () => {
                 </div>
             )}
 
-            {/* Alert Modal */}
+            {/* Alert Modal (In-App Only) */}
             {showAlertModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
-                        <h3 className="text-xl font-bold mb-4">Send Alert to {employee.name}</h3>
+                    <Card className="w-full max-w-md p-6 border-danger/20 shadow-glow-danger">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-danger" /> Send In-App Alert
+                        </h3>
+                        <p className="text-sm text-text-secondary mb-4">
+                            This will trigger a visual notification in the employee's dashboard. NO email will be sent.
+                        </p>
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Alert Type</label>
-                                <select
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
-                                    value={alertType}
-                                    onChange={(e) => setAlertType(e.target.value)}
-                                >
-                                    <option value="Warning">⚠️ Warning</option>
-                                    <option value="Critical">🚨 Urgent</option>
-                                    <option value="Info">ℹ️ Info</option>
-                                </select>
-                            </div>
                             <div>
                                 <label className="block text-sm text-text-secondary mb-1">Message</label>
                                 <textarea
                                     className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-24"
-                                    placeholder="Enter your message..."
+                                    placeholder="Enter alert message..."
                                     value={alertMessage}
                                     onChange={(e) => setAlertMessage(e.target.value)}
                                 />
                             </div>
                             <div className="flex justify-end gap-3 pt-2">
                                 <Button variant="ghost" onClick={() => setShowAlertModal(false)}>Cancel</Button>
-                                <Button variant="primary" onClick={handleSendAlert} disabled={sendingAlert} isLoading={sendingAlert}>
-                                    {sendingAlert ? "Sending..." : "Send Alert"} <Send className="w-4 h-4 ml-2" />
+                                <Button variant="danger" onClick={handleSendAlert} disabled={sendingAlert}>
+                                    {sendingAlert ? "Sending..." : "Send Alert"}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Email Modal (Resend Only) */}
+            {showEmailModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-primary" /> Send Email via Resend
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-text-secondary mb-1">Subject</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                    value={emailSubject}
+                                    onChange={(e) => setEmailSubject(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-text-secondary mb-1">Email Body (HTML supported)</label>
+                                <textarea
+                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-40 font-mono text-sm"
+                                    value={emailBody}
+                                    onChange={(e) => setEmailBody(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <Button variant="ghost" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+                                <Button variant="primary" onClick={handleSendEmail} disabled={sendingEmail}>
+                                    {sendingEmail ? "Sending..." : "Send Email"} <Send className="w-4 h-4 ml-2" />
                                 </Button>
                             </div>
                         </div>
@@ -392,7 +443,7 @@ const EmployeeDetailPage = () => {
                             </div>
                             <div className="flex justify-end gap-3 pt-2">
                                 <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-                                <Button variant="primary" disabled={updatingTask} isLoading={updatingTask} onClick={async () => {
+                                <Button variant="primary" disabled={updatingTask} onClick={async () => {
                                     setUpdatingTask(true);
                                     try {
                                         const title = document.getElementById('editTitle').value;

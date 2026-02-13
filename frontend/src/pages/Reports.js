@@ -1,15 +1,42 @@
+import { useState, useEffect } from 'react';
 import { FileDown, PieChart, BarChart, TrendingUp, Loader2 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import SkeletonLoader from '../components/SkeletonLoader';
 import { endpoints } from '../services/api';
-import { useState, useEffect } from 'react';
 
 const Reports = () => {
     const [data, setData] = useState(null);
     const [weeklyTrend, setWeeklyTrend] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [downloading, setDownloading] = useState(null); // 'pdf', 'csv', 'excel' or null
+
+    const handleDownload = async (type, filename) => {
+        try {
+            const storedUser = localStorage.getItem('onboardai_user');
+            const token = storedUser ? JSON.parse(storedUser).token : null;
+            const response = await fetch(`http://localhost:5000/api/reports/download/${type}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Download failed');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download Error:", error);
+            alert("Failed to download report. Please try again.");
+        }
+    };
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -26,49 +53,15 @@ const Reports = () => {
                 setLoading(false);
             }
         };
+
         fetchReports();
+        // Poll every 10 seconds
+        const interval = setInterval(fetchReports, 10000);
+        return () => clearInterval(interval);
     }, []);
 
-    const handleDownload = async (type) => {
-        setDownloading(type);
-        try {
-            let res;
-            if (type === 'pdf') res = await endpoints.reports.getPDF();
-            else if (type === 'csv') res = await endpoints.reports.getCSV();
-            else if (type === 'excel') res = await endpoints.reports.getExcel();
-
-            // Create blob link to download
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `report.${type === 'excel' ? 'xlsx' : type}`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (error) {
-            console.error("Download failed:", error);
-            alert("Failed to download report.");
-        } finally {
-            setDownloading(null);
-        }
-    };
-
     if (loading) {
-        return (
-            <div className="space-y-8">
-                <div className="h-20"><SkeletonLoader height="100%" /></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <SkeletonLoader type="card" count={1} className="h-32" />
-                    <SkeletonLoader type="card" count={1} className="h-32" />
-                    <SkeletonLoader type="card" count={1} className="h-32" />
-                    <SkeletonLoader type="card" count={1} className="h-32" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <SkeletonLoader type="card" className="h-80" />
-                    <SkeletonLoader type="card" className="h-80" />
-                </div>
-            </div>
-        );
+        return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
     }
 
     return (
@@ -154,7 +147,6 @@ const Reports = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* ... Department Distribution ... */}
                 <Card className="min-h-[250px]">
                     <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                         <PieChart className="w-5 h-5 text-secondary" /> Department Distribution
@@ -180,33 +172,28 @@ const Reports = () => {
                 <Card>
                     <h3 className="text-lg font-semibold mb-4 text-text-primary">Download Reports</h3>
                     <p className="text-text-secondary text-sm mb-6">Get detailed insights in PDF, CSV, or Excel format.</p>
+
                     <div className="space-y-3">
                         <Button
                             variant="primary"
                             className="w-full"
-                            onClick={() => handleDownload('pdf')}
-                            isLoading={downloading === 'pdf'}
-                            disabled={downloading !== null}
+                            onClick={() => handleDownload('pdf', 'onboardai-report.pdf')}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
                         </Button>
                         <Button
                             variant="secondary"
                             className="w-full"
-                            onClick={() => handleDownload('csv')}
-                            isLoading={downloading === 'csv'}
-                            disabled={downloading !== null}
+                            onClick={() => handleDownload('csv', 'onboardai-report.csv')}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
                         </Button>
                         <Button
                             variant="secondary"
                             className="w-full"
-                            onClick={() => handleDownload('excel')}
-                            isLoading={downloading === 'excel'}
-                            disabled={downloading !== null}
+                            onClick={() => handleDownload('excel', 'onboardai-report.xlsx')}
                         >
-                            <FileDown className="w-4 h-4 mr-2" /> Export Excel (.xlsx)
+                            <FileDown className="w-4 h-4 mr-2" /> Download Excel (.xlsx)
                         </Button>
                     </div>
                 </Card>

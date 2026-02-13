@@ -48,7 +48,9 @@ export const endpoints = {
     reports: {
         getSummary: () => api.get('/reports/summary'),
         getWeeklyRiskTrend: () => api.get('/reports/weekly-risk-trend'),
-        export: () => api.get('/reports/export')
+        getPDF: () => api.get('/reports/download/pdf', { responseType: 'blob' }),
+        getCSV: () => api.get('/reports/download/csv', { responseType: 'blob' }),
+        getExcel: () => api.get('/reports/download/excel', { responseType: 'blob' }),
     },
     dashboard: {
         getSummary: () => api.get('/dashboard/summary'),

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Info, ShieldAlert, CheckCircle, Loader2, Lightbulb, X, ArrowRight } from 'lucide-react';
 import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { endpoints } from '../services/api';
 import api from '../services/api'; // Use the raw api instance if endpoints doesn't have the specific route
 
@@ -89,7 +91,9 @@ const AlertsInsights = () => {
             </div>
 
             {loading ? (
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>
+                <div className="space-y-6">
+                    <SkeletonLoader type="card" count={3} />
+                </div>
             ) : (
                 <>
                     {/* ALERTS SECTION */}
@@ -124,18 +128,20 @@ const AlertsInsights = () => {
                                             </div>
 
                                             <div className="mt-4 flex gap-3">
-                                                <button
+                                                <Button
                                                     onClick={() => navigate(`/employees/${item.user_id}`)}
-                                                    className="text-sm font-medium px-4 py-2 rounded-lg bg-surface border border-white/10 hover:bg-white/5 transition-colors"
+                                                    variant="secondary"
+                                                    size="sm"
                                                 >
                                                     View Details
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
                                                     onClick={() => setSelectedEmployee(item)}
-                                                    className="text-sm font-medium px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 transition-colors"
+                                                    variant="danger"
+                                                    size="sm"
                                                 >
                                                     Take Action
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     </Card>
@@ -171,18 +177,21 @@ const AlertsInsights = () => {
                                         </div>
 
                                         <div className="mt-4 flex gap-3">
-                                            <button
+                                            <Button
                                                 onClick={() => navigate(`/employees/${item.user_id}`)}
-                                                className="text-sm font-medium px-4 py-2 rounded-lg bg-surface border border-white/10 hover:bg-white/5 transition-colors"
+                                                variant="secondary"
+                                                size="sm"
                                             >
                                                 View Details
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
                                                 onClick={() => setSelectedEmployee(item)}
-                                                className="text-sm font-medium px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                                                variant="primary" // Changed to primary/glow style logic if needed, but primary maps to 'primary' variant
+                                                className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                                                size="sm"
                                             >
                                                 View Recommendations
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 </Card>

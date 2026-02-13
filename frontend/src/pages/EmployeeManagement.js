@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, X, Users as UsersIcon, Mail, Briefcase, Building } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import Button from '../components/ui/Button';
+import SkeletonLoader from '../components/SkeletonLoader';
 
 const EmployeeManagement = () => {
     const [employees, setEmployees] = useState([]);
@@ -34,13 +36,15 @@ const EmployeeManagement = () => {
             console.error("Failed to load templates");
         }
     };
-
     const fetchEmployees = async () => {
+        setLoading(true);
         try {
             const response = await api.get('/employees');
             setEmployees(response.data);
         } catch (error) {
             showToast('Failed to load employees', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -92,13 +96,17 @@ const EmployeeManagement = () => {
                     <h1 className="text-3xl font-bold text-text-primary">Employee Management</h1>
                     <p className="text-text-secondary mt-1">Manage team members and roles</p>
                 </div>
-                <button
+                <div>
+                    <h1 className="text-3xl font-bold text-text-primary">Employee Management</h1>
+                    <p className="text-text-secondary mt-1">Manage team members and roles</p>
+                </div>
+                <Button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors shadow-lg shadow-primary/20"
+                    className="flex items-center gap-2"
                 >
                     <UserPlus className="w-5 h-5" />
                     Create Employee
-                </button>
+                </Button>
             </div>
 
             {/* Employee List */}
@@ -115,37 +123,51 @@ const EmployeeManagement = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {employees.map((emp) => (
-                            <tr key={emp.id} className="hover:bg-white/5 transition-colors">
-                                <td className="px-6 py-4 text-text-primary font-medium">{emp.name}</td>
-                                <td className="px-6 py-4 text-text-secondary">{emp.email || 'N/A'}</td>
-                                <td className="px-6 py-4">
-                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                        {emp.role}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-text-secondary">{emp.dept || 'N/A'}</td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-primary rounded-full transition-all"
-                                                style={{ width: `${emp.progress || 0}%` }}
-                                            />
+                        {loading && employees.length === 0 ? (
+                            // Show 5 skeleton rows
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i}>
+                                    <td className="px-6 py-4"><SkeletonLoader /></td>
+                                    <td className="px-6 py-4"><SkeletonLoader /></td>
+                                    <td className="px-6 py-4"><SkeletonLoader width="80px" /></td>
+                                    <td className="px-6 py-4"><SkeletonLoader width="100px" /></td>
+                                    <td className="px-6 py-4"><SkeletonLoader /></td>
+                                    <td className="px-6 py-4"><SkeletonLoader width="60px" /></td>
+                                </tr>
+                            ))
+                        ) : (
+                            employees.map((emp) => (
+                                <tr key={emp.id} className="hover:bg-white/5 transition-colors">
+                                    <td className="px-6 py-4 text-text-primary font-medium">{emp.name}</td>
+                                    <td className="px-6 py-4 text-text-secondary">{emp.email || 'N/A'}</td>
+                                    <td className="px-6 py-4">
+                                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                            {emp.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-text-secondary">{emp.dept || 'N/A'}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary rounded-full transition-all"
+                                                    style={{ width: `${emp.progress || 0}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-sm text-text-secondary w-12">{emp.progress || 0}%</span>
                                         </div>
-                                        <span className="text-sm text-text-secondary w-12">{emp.progress || 0}%</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => openAssignModal(emp)}
-                                        className="text-sm text-primary hover:text-primary/80 transition-colors"
-                                    >
-                                        Assign Template
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button
+                                            onClick={() => openAssignModal(emp)}
+                                            className="text-sm text-primary hover:text-primary/80 transition-colors"
+                                        >
+                                            Assign Template
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -235,13 +257,13 @@ const EmployeeManagement = () => {
                                 >
                                     Cancel
                                 </button>
-                                <button
+                                <Button
                                     type="submit"
-                                    disabled={loading}
-                                    className="flex-1 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors disabled:opacity-50"
+                                    isLoading={loading}
+                                    className="flex-1"
                                 >
-                                    {loading ? 'Creating...' : 'Create Employee'}
-                                </button>
+                                    Create Employee
+                                </Button>
                             </div>
                         </form>
                     </div>
@@ -273,13 +295,14 @@ const EmployeeManagement = () => {
                             >
                                 Cancel
                             </button>
-                            <button
+                            <Button
                                 onClick={handleAssignTemplate}
                                 disabled={!selectedTemplate || loading}
-                                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg disabled:opacity-50"
+                                isLoading={loading}
+                                className="flex-1"
                             >
-                                {loading ? 'Assigning...' : 'Assign'}
-                            </button>
+                                Assign
+                            </Button>
                         </div>
                     </div>
                 </div>

@@ -30,11 +30,7 @@ def login():
 
         # Verify password using bcrypt (matching seed_auth.py)
         # Handle cases where password_hash might be string or bytes
-        stored_hash = user.password_hash
-        if isinstance(stored_hash, str):
-            stored_hash = stored_hash.encode('utf-8')
-            
-        if bcrypt.checkpw(data["password"].encode('utf-8'), stored_hash):
+        if check_password_hash(user.password_hash, data["password"]):
             print("Password verified.")
             # Generate JWT
             token = jwt.encode({

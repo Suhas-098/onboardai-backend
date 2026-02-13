@@ -70,17 +70,28 @@ class AlertService:
             # Filter alerts for this user
             user_alerts = [a for a in all_alerts if a.get('target_user_id') == user.id]
 
+            has_critical = False
+            has_warning = False
+
             for alert in user_alerts:
-                lvl = alert.get('level', '').lower()
+                # Dynamic alerts have 'level', DB alerts have 'type'
+                lvl = alert.get('level') or alert.get('type') or ''
+                lvl = lvl.lower()
                 msg = alert.get('message', '')
                 
                 if lvl in ['critical', 'delayed']:
-                    status = "Delayed" # Critical alert = Delayed status
+                    has_critical = True
                     reasons.append(msg)
-                elif lvl == 'warning' and status != 'Delayed':
-                    status = "At Risk" # Warning alert = At Risk status (unless already Delayed)
+                elif lvl == 'warning':
+                    has_warning = True
                     reasons.append(msg)
 
+            # Enforce Precedence: Critical > Warning > On Track
+            if has_critical:
+                status = "Delayed"
+            elif has_warning:
+                status = "At Risk"
+            
             user_risks[user.id] = {
                 "user": user,
                 "status": status,

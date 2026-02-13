@@ -31,25 +31,25 @@ def dashboard_summary():
 @dashboard_routes.route("/dashboard/risk-trend", methods=["GET"])
 @check_role(["admin", "hr"])
 def get_risk_trend():
-    # Since we don't have historical data, we simulate it based on current real values
-    # to provide a realistic looking chart that ends in the actual current state.
+    # Use AlertService as Single Source of Truth for current state
+    user_risks = AlertService.get_user_risks()
     
-    users = User.query.all()
     current_risk_score = 0
-    if users:
+    total_users = len(user_risks)
+    
+    if total_users > 0:
         total_risk = 0
-        for u in users:
-            # Simple heuristic for score: On Track=10, At Risk=50, Delayed=90
-            if u.risk == "On Track": total_risk += 10
-            elif u.risk == "At Risk": total_risk += 50
-            elif u.risk == "Delayed": total_risk += 90
+        for uid, data in user_risks.items():
+            status = data['status']
+            # Simple heuristic matching reports logic: On Track=10, At Risk=50, Delayed=90
+            if status == "On Track": total_risk += 10
+            elif status == "At Risk": total_risk += 50
+            elif status == "Delayed": total_risk += 90
             else: total_risk += 10
-        current_risk_score = int(total_risk / len(users))
+        current_risk_score = int(total_risk / total_users)
 
     # Generate 7 days of data ending in current_score
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    # Rotate days so today is last? Or just use generic labels for now. 
-    # Let's use relative days: T-6, T-5... Today
     
     trend_data = []
     base_score = current_risk_score

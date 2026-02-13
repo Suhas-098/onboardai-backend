@@ -10,6 +10,10 @@ from middleware.auth_middleware import token_required
 def get_all_risks():
     """Returns a list of all employees and their risk levels."""
     try:
+        # Single Source of Truth for Risk Status
+        from services.alert_service import AlertService
+        user_risks_map = AlertService.get_user_risks()
+        
         users = User.query.filter(User.role.ilike("employee") | User.role.ilike("intern")).all()
         results = []
 
@@ -67,14 +71,28 @@ def get_all_risks():
                 # Get AI analysis
                 from services.predictor import analyze_employee_risk
                 analysis = analyze_employee_risk(employee_data)
+                
+                # OVERRIDE with AlertService logic
+                alert_data = user_risks_map.get(user.id)
+                final_risk_level = analysis["risk_level"]
+                final_risk_message = analysis["message"]
+
+                if alert_data:
+                    alert_status = alert_data['status']
+                    if alert_status == 'Delayed':
+                        final_risk_level = 'Critical'
+                        final_risk_message = alert_data['reasons'][0] if alert_data['reasons'] else "Critical Alerts Detected"
+                    elif alert_status == 'At Risk':
+                        final_risk_level = 'Warning'
+                        final_risk_message = alert_data['reasons'][0] if alert_data['reasons'] else "Warning Alerts Detected"
 
                 results.append({
                     "user_id": user.id,
                     "name": user.name,
                     "role": user.role,
                     "department": user.department,
-                    "risk": analysis["risk_level"], # Critical, Warning, Neutral, Good
-                    "risk_message": analysis["message"],
+                    "risk": final_risk_level, 
+                    "risk_message": final_risk_message,
                     "score": round(total_completion, 1),
                     "prediction": analysis["prediction"],
                     "recommended_actions": analysis["recommended_actions"]
@@ -102,25 +120,14 @@ def get_all_risks():
 @risk_routes.route("/risks/stats", methods=["GET"])
 def get_risk_stats():
     """Returns aggregated risk statistics."""
-    users = User.query.filter(User.role.ilike("employee")).all()
-    
-    stats = {
-        "total_users": len(users),
-        "on_track": 0,
-        "at_risk": 0,
-        "delayed": 0
-    }
-    
-    for user in users:
-        risk = (user.risk or "On Track").lower()
-        if risk == "on track":
-            stats["on_track"] += 1
-        elif risk == "at risk":
-            stats["at_risk"] += 1
-        elif risk == "delayed":
-            stats["delayed"] += 1
-            
-    return jsonify(stats)
+    from services.alert_service import AlertService
+    stats = AlertService.get_dashboard_stats()
+    return jsonify({
+        "total_users": stats["total_employees"],
+        "on_track": stats["on_track"],
+        "at_risk": stats["at_risk"],
+        "delayed": stats["delayed"]
+    })
 
 @risk_routes.route("/ml/prediction-summary", methods=["GET"])
 @token_required
@@ -128,23 +135,10 @@ def get_prediction_summary():
     """
     aggregated summary for the ML Predictor - Enhanced Requirement
     """
-    users = User.query.filter(User.role.ilike("employee")).all()
-    stats = {
-        "on_track": 0,
-        "at_risk": 0,
-        "delayed": 0
-    }
-    
-    for user in users:
-        # Re-use existing risk logic or stored field
-        # For performance, we trust the stored field updated by previous scans
-        # or defaults to "On Track"
-        risk = (user.risk or "On Track").lower()
-        if risk == "on track" or risk == "good":
-            stats["on_track"] += 1
-        elif risk == "at risk" or risk == "warning":
-            stats["at_risk"] += 1
-        elif risk == "delayed" or risk == "critical":
-            stats["delayed"] += 1
-            
-    return jsonify(stats)
+    from services.alert_service import AlertService
+    stats = AlertService.get_dashboard_stats()
+    return jsonify({
+        "on_track": stats["on_track"],
+        "at_risk": stats["at_risk"],
+        "delayed": stats["delayed"]
+    })

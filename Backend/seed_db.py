@@ -164,13 +164,35 @@ def seed_database():
                 )
                 db.session.add(progress)
 
-        print("🌱 Seeding Notifications...")
+        print("🌱 Seeding Notifications & Alerts...")
         for emp in employees:
              if emp.risk == "At Risk":
+                 # Notification
                  db.session.add(EmployeeNotification(
                      user_id=emp.id,
                      message="Reminder: You have pending tasks overdue.",
                      type="warning"
+                 ))
+                 # Alert (New Single Source of Truth Requirement)
+                 db.session.add(Alert(
+                     type="Warning",
+                     message="Low engagement detected",
+                     target_user_id=emp.id,
+                     sender="System"
+                 ))
+             elif emp.risk == "Delayed":
+                 # Notification
+                 db.session.add(EmployeeNotification(
+                     user_id=emp.id,
+                     message="CRITICAL: Missed Deadline!",
+                     type="error"
+                 ))
+                 # Alert (New Single Source of Truth Requirement)
+                 db.session.add(Alert(
+                     type="Critical",
+                     message="Missed critical deadline",
+                     target_user_id=emp.id,
+                     sender="System"
                  ))
         
         db.session.commit()

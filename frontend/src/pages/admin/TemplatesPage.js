@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Video, FileText, Upload, CheckSquare, Pencil } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import SkeletonLoader from '../../components/SkeletonLoader';
 import { endpoints } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
@@ -129,7 +130,14 @@ const TemplatesPage = () => {
             </div>
 
             {loading ? (
-                <div className="text-center text-text-secondary">Loading...</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                    <SkeletonLoader type="card" className="h-40" count={1} />
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {templates.map(t => (

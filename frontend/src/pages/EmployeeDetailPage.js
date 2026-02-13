@@ -6,6 +6,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import ActivityLog from '../components/ActivityLog';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 const EmployeeDetailPage = () => {
@@ -76,7 +77,23 @@ const EmployeeDetailPage = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-text-secondary">Loading Profile...</div>;
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="h-10 w-32"><SkeletonLoader /></div>
+                <SkeletonLoader type="card" className="h-40" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        <SkeletonLoader type="card" className="h-96" />
+                        <SkeletonLoader type="card" className="h-40" />
+                    </div>
+                    <div className="lg:col-span-1">
+                        <SkeletonLoader type="card" className="h-96" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (error) return <div className="p-8 text-center text-danger">{error}</div>;
     if (!employee) return <div className="p-8 text-center">Employee not found.</div>;
 
@@ -286,7 +303,7 @@ const EmployeeDetailPage = () => {
                                             console.error(e);
                                             alert("Failed to assign task");
                                         }
-                                    }}>
+                                    }} isLoading={loading}>
                                         + Assign Task
                                     </Button>
                                 </div>
@@ -327,7 +344,7 @@ const EmployeeDetailPage = () => {
                             </div>
                             <div className="flex justify-end gap-3 pt-2">
                                 <Button variant="ghost" onClick={() => setShowAlertModal(false)}>Cancel</Button>
-                                <Button variant="primary" onClick={handleSendAlert} disabled={sendingAlert}>
+                                <Button variant="primary" onClick={handleSendAlert} disabled={sendingAlert} isLoading={sendingAlert}>
                                     {sendingAlert ? "Sending..." : "Send Alert"} <Send className="w-4 h-4 ml-2" />
                                 </Button>
                             </div>
@@ -375,7 +392,7 @@ const EmployeeDetailPage = () => {
                             </div>
                             <div className="flex justify-end gap-3 pt-2">
                                 <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-                                <Button variant="primary" disabled={updatingTask} onClick={async () => {
+                                <Button variant="primary" disabled={updatingTask} isLoading={updatingTask} onClick={async () => {
                                     setUpdatingTask(true);
                                     try {
                                         const title = document.getElementById('editTitle').value;

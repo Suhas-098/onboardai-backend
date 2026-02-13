@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
 import { FileDown, PieChart, BarChart, TrendingUp, Loader2 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { endpoints } from '../services/api';
+import { useState, useEffect } from 'react';
 
 const Reports = () => {
     const [data, setData] = useState(null);
     const [weeklyTrend, setWeeklyTrend] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [downloading, setDownloading] = useState(null); // 'pdf', 'csv', 'excel' or null
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -28,6 +30,7 @@ const Reports = () => {
     }, []);
 
     const handleDownload = async (type) => {
+        setDownloading(type);
         try {
             let res;
             if (type === 'pdf') res = await endpoints.reports.getPDF();
@@ -45,11 +48,27 @@ const Reports = () => {
         } catch (error) {
             console.error("Download failed:", error);
             alert("Failed to download report.");
+        } finally {
+            setDownloading(null);
         }
     };
 
     if (loading) {
-        return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+        return (
+            <div className="space-y-8">
+                <div className="h-20"><SkeletonLoader height="100%" /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <SkeletonLoader type="card" count={1} className="h-32" />
+                    <SkeletonLoader type="card" count={1} className="h-32" />
+                    <SkeletonLoader type="card" count={1} className="h-32" />
+                    <SkeletonLoader type="card" count={1} className="h-32" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <SkeletonLoader type="card" className="h-80" />
+                    <SkeletonLoader type="card" className="h-80" />
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -166,6 +185,8 @@ const Reports = () => {
                             variant="primary"
                             className="w-full"
                             onClick={() => handleDownload('pdf')}
+                            isLoading={downloading === 'pdf'}
+                            disabled={downloading !== null}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
                         </Button>
@@ -173,6 +194,8 @@ const Reports = () => {
                             variant="secondary"
                             className="w-full"
                             onClick={() => handleDownload('csv')}
+                            isLoading={downloading === 'csv'}
+                            disabled={downloading !== null}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
                         </Button>
@@ -180,6 +203,8 @@ const Reports = () => {
                             variant="secondary"
                             className="w-full"
                             onClick={() => handleDownload('excel')}
+                            isLoading={downloading === 'excel'}
+                            disabled={downloading !== null}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Export Excel (.xlsx)
                         </Button>

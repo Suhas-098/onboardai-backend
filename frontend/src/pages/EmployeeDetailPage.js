@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Mail, Calendar, Target, Clock, AlertTriangle, Shield, CheckCircle, ArrowLeft, Send, Lock } from 'lucide-react';
 import { endpoints } from '../services/api';

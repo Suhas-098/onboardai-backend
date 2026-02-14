@@ -20,10 +20,13 @@ from routes.admin_routes import admin_routes
 from config.config import Config
 
 app = Flask(__name__)
-CORS(app, origins=[
-    "http://localhost:3000",
-    "https://onboardai-frontend.vercel.app"
-])
+
+# CORS(app, origins=[
+#     "http://localhost:3000",
+#     "https://onboardai-frontend.vercel.app",
+#     "https://onboardai-frontend-7j089zb68-suhas-magadums-projects.vercel.app"
+# ])
+CORS(app)
 
 app.config.from_object(Config)
 init_database(app)

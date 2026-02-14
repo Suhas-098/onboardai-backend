@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
-    ShieldAlert,
     Activity,
     Settings,
     LogOut,

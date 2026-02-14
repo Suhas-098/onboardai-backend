@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Moon, Sun, Smartphone, Bell, User, Shield } from 'lucide-react';
+import { X, Moon, Sun, Smartphone, Bell } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import Card from './ui/Card';
@@ -14,7 +14,6 @@ const SettingsPanel = ({ isOpen, onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-enter">
             <Card className="w-full max-w-lg p-0 overflow-hidden border-white/10 shadow-glow-primary">
-                {/* Header */}
                 <div className="p-6 border-b border-white/5 flex items-center justify-between bg-surface-light">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         Settings

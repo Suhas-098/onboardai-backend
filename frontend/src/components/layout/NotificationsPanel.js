@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { X, Check, Bell } from 'lucide-react';
+import { X, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const NotificationsPanel = ({ isOpen, onClose, alerts = [] }) => {
@@ -57,8 +57,8 @@ const NotificationsPanel = ({ isOpen, onClose, alerts = [] }) => {
                             >
                                 <div className="flex items-start gap-3">
                                     <div className={`mt-1 p-1.5 rounded-full ${alert.type === 'Critical' ? 'bg-danger/20 text-danger' :
-                                            alert.type === 'Warning' ? 'bg-warning/20 text-warning' :
-                                                'bg-primary/20 text-primary'
+                                        alert.type === 'Warning' ? 'bg-warning/20 text-warning' :
+                                            'bg-primary/20 text-primary'
                                         }`}>
                                         <Bell className="w-3 h-3" />
                                     </div>

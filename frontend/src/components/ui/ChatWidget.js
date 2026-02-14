@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import Button from '../ui/Button';
 
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);

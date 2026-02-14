@@ -59,7 +59,7 @@ const EmployeeManagement = () => {
         if (!selectedTemplate) return;
         setLoading(true);
         try {
-            await api.post(`/employees/${selectedEmployee.id}/assign-template/${selectedTemplate}`);
+            await api.templates.assign(selectedEmployee.id, selectedTemplate);
             showToast(`Template assigned to ${selectedEmployee.name}`, 'success');
             setIsAssignModalOpen(false);
             fetchEmployees(); // Refresh progress
@@ -80,7 +80,7 @@ const EmployeeManagement = () => {
                 ...formData,
                 fullName: formData.name // Ensure fullName is sent as requested
             };
-            console.log("Creating employee with payload:", payload);
+
             await api.post('/users', payload);
             showToast(`Successfully created ${formData.name}`, 'success');
             setIsModalOpen(false);

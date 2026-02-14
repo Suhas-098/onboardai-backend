@@ -24,38 +24,19 @@ Flask-based backend for the OnboardAI application, managing employee onboarding,
     python config/init_db.py
     ```
 
-3.  **Seed Data**:
-    Populate the database with realistic test data (users, templates, tasks, etc.).
-    ```bash
-    python seed_db.py
-    ```
-
-4.  **Run Server**:
+3.  **Run Server**:
     ```bash
     python app.py
     ```
     The server runs on `http://localhost:5000`.
 
-## API Endpoints
+## API Documentation
 
-### Authentication
-- `POST /api/auth/login`: Login user.
-- `POST /api/auth/signup`: Register new user.
+For a complete list of API endpoints, please refer to **[ROUTES_DOCUMENTATION.md](ROUTES_DOCUMENTATION.md)** located in this directory.
 
-### Employees
-- `GET /api/employees`: List all employees (Admin/HR).
-- `GET /api/employees/<id>`: Get employee details.
-- `GET /api/employees/<id>/tasks`: Get employee tasks.
-
-### Templates
-- `GET /api/templates`: List all templates.
-- `POST /api/templates`: Create a new template.
-- `POST /api/employees/<id>/assign-template/<template_id>`: Assign a template to an employee.
-
-### Risk & ML
-- `GET /api/risks/stats`: Get risk distribution stats.
-- `GET /api/ml/prediction-summary`: Get ML-driven risk summary (On Track, At Risk, Delayed).
-
-### Alerts & Notifications
-- `GET /api/alerts`: Get system alerts.
-- `POST /api/alerts`: Create a new alert.
+It covers:
+- Authentication
+- Employee Management
+- Template & Task Management
+- Dashboard & Risk Analytics
+- Reporting & Notifications

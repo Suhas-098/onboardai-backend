@@ -58,7 +58,9 @@ Access Includes:
 
 Or preview below with voice over :
 
-[[OnboardAI Demo]([https://drive.google.com/file/d/111UWXS1BZ-U9dDPNKQjelEfcnXDEWX54/view?usp=sharing])
+## 🎥 Project Demo Video
+
+👉 [Click here to watch the demo](https://drive.google.com/file/d/111UWXS1BZ-U9dDPNKQjelEfcnXDEWX54/view?usp=sharing)
 
 ---
 

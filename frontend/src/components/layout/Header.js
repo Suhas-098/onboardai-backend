@@ -73,9 +73,22 @@ const Header = () => {
                         <p className="text-sm font-medium text-text-primary">{user?.name || 'User'}</p>
                         <p className="text-xs text-text-secondary md:uppercase">{user?.role || 'Guest'}</p>
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-secondary p-[1px]">
-                        <div className="w-full h-full rounded-full bg-surface flex items-center justify-center overflow-hidden">
-                            <span className="font-bold text-xs text-primary">{user?.avatar || '👤'}</span>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary p-[1px]">
+                        <div className="w-full h-full rounded-full bg-surface border border-surface overflow-hidden flex items-center justify-center">
+                            {user?.avatar ? (
+                                <img
+                                    src={user.avatar}
+                                    alt={user.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerText = user.name?.charAt(0);
+                                    }}
+                                />
+                            ) : (
+                                <span className="text-xs font-bold text-primary">{user?.name?.charAt(0)}</span>
+                            )}
                         </div>
                     </div>
                 </div>

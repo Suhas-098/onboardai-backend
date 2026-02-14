@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { UserPlus, X, Users as UsersIcon, Mail, Briefcase, Building } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { UserPlus, X, Users as UsersIcon, Mail, Building, Lock } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import Button from '../components/ui/Button';
@@ -14,6 +14,7 @@ const EmployeeManagement = () => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
+        password: '',
         role: 'employee',
         department: ''
     });
@@ -23,20 +24,16 @@ const EmployeeManagement = () => {
     const [templates, setTemplates] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState('');
 
-    useEffect(() => {
-        fetchEmployees();
-        fetchTemplates();
-    }, []);
-
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             const res = await api.get('/templates');
             setTemplates(res.data);
         } catch (error) {
             console.error("Failed to load templates");
         }
-    };
-    const fetchEmployees = async () => {
+    }, []);
+
+    const fetchEmployees = useCallback(async () => {
         setLoading(true);
         try {
             const response = await api.get('/employees');
@@ -46,7 +43,12 @@ const EmployeeManagement = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchEmployees();
+        fetchTemplates();
+    }, [fetchEmployees, fetchTemplates]);
 
     const openAssignModal = (employee) => {
         setSelectedEmployee(employee);
@@ -62,6 +64,7 @@ const EmployeeManagement = () => {
             setIsAssignModalOpen(false);
             fetchEmployees(); // Refresh progress
         } catch (error) {
+            console.error("Assign template failed:", error.response?.data || error.message);
             showToast(error.response?.data?.message || 'Failed to assign template', 'error');
         } finally {
             setLoading(false);
@@ -73,13 +76,19 @@ const EmployeeManagement = () => {
         setLoading(true);
 
         try {
-            await api.post('/users', formData);
+            const payload = {
+                ...formData,
+                fullName: formData.name // Ensure fullName is sent as requested
+            };
+            console.log("Creating employee with payload:", payload);
+            await api.post('/users', payload);
             showToast(`Successfully created ${formData.name}`, 'success');
             setIsModalOpen(false);
-            setFormData({ name: '', email: '', role: 'employee', department: '' });
+            setFormData({ name: '', email: '', password: '', role: 'employee', department: '' });
             fetchEmployees();
         } catch (error) {
-            showToast(error.response?.data?.message || 'Failed to create user', 'error');
+            console.error("Create employee failed:", error.response?.data || error.message);
+            showToast(error.response?.data?.message || 'Failed to create user. Please check your inputs.', 'error');
         } finally {
             setLoading(false);
         }
@@ -92,10 +101,6 @@ const EmployeeManagement = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-text-primary">Employee Management</h1>
-                    <p className="text-text-secondary mt-1">Manage team members and roles</p>
-                </div>
                 <div>
                     <h1 className="text-3xl font-bold text-text-primary">Employee Management</h1>
                     <p className="text-text-secondary mt-1">Manage team members and roles</p>
@@ -216,6 +221,22 @@ const EmployeeManagement = () => {
                                     required
                                     className="w-full px-4 py-3 bg-background border border-white/10 rounded-xl text-text-primary focus:outline-none focus:border-primary transition-colors"
                                     placeholder="john@company.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text-secondary mb-2">
+                                    <Lock className="w-4 h-4 inline mr-2" />
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="w-full px-4 py-3 bg-background border border-white/10 rounded-xl text-text-primary focus:outline-none focus:border-primary transition-colors"
+                                    placeholder="••••••••"
                                 />
                             </div>
 

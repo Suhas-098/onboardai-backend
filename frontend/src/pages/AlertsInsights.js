@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Info, ShieldAlert, CheckCircle, Loader2, Lightbulb, X, ArrowRight } from 'lucide-react';
+import { ShieldAlert, Lightbulb, X, ArrowRight } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import SkeletonLoader from '../components/SkeletonLoader';
-import { endpoints } from '../services/api';
-import api from '../services/api'; // Use the raw api instance if endpoints doesn't have the specific route
+import api from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const ActionModal = ({ isOpen, onClose, employee }) => {
     if (!isOpen || !employee) return null;
@@ -56,24 +56,17 @@ const ActionModal = ({ isOpen, onClose, employee }) => {
 
 const AlertsInsights = () => {
     const navigate = useNavigate();
-    const [risks, setRisks] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetching from the new risks endpoint we verified
-                const response = await api.get('/risks');
-                setRisks(response.data);
-            } catch (error) {
-                console.error("Failed to load risks:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
+    // 15 minutes stale time
+    const staleTime = 15 * 60 * 1000;
+
+    const { data: risks = [], isLoading } = useQuery({
+        queryKey: ['risks-insights'],
+        queryFn: () => api.get('/risks').then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
 
     const alerts = risks.filter(r => r.risk === 'Critical' || r.risk === 'Warning');
     const insights = risks.filter(r => r.prediction && r.prediction.includes('AI Prediction'));
@@ -90,9 +83,9 @@ const AlertsInsights = () => {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="space-y-6">
-                    <SkeletonLoader type="card" count={3} />
+            {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                    <LoadingSpinner size="lg" />
                 </div>
             ) : (
                 <>

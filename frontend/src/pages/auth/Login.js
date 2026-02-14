@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowRight, Eye, EyeOff, Lock, User, Briefcase } from 'lucide-react';
-import Button from '../../components/ui/Button';
+import { ArrowRight, Eye, EyeOff, User, Briefcase } from 'lucide-react';
 import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
 
 const Login = () => {
     const navigate = useNavigate();

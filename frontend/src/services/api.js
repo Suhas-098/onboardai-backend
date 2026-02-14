@@ -26,7 +26,32 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // In a real app, we would handle global errors here (e.g., 401 Unauthorized)
+        if (error.response) {
+            const { status } = error.response;
+
+            // 401: Unauthorized -> Clear auth and redirect to login
+            if (status === 401) {
+                localStorage.removeItem('onboardai_user');
+                localStorage.removeItem('onboardai_token'); // Just in case
+                // Avoid loop if already on login
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
+            }
+
+            // 403: Forbidden -> Logic usually requires UI notification
+            if (status === 403) {
+                console.warn("Permission denied: You do not have access to this resource.");
+                // Dispatch a custom event for the UI to catch if needed
+                window.dispatchEvent(new CustomEvent('api-error', { detail: 'You do not have permission to perform this action.' }));
+            }
+
+            // 404: Not Found
+            if (status === 404) {
+                console.warn("Resource not found:", error.config.url);
+            }
+        }
+
         console.error('API Error:', error.response?.data || error.message);
         return Promise.reject(error);
     }

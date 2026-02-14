@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, TrendingUp, Users } from 'lucide-react';
 import Card from '../components/ui/Card';
 import { endpoints } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
     <Card className="flex items-center gap-4">
@@ -24,45 +26,61 @@ const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
 );
 
 const AIRiskCommand = () => {
-    const [summary, setSummary] = useState(null);
-    const [risks, setRisks] = useState([]);
-    const [riskTrend, setRiskTrend] = useState([]);
-    const [criticalFocus, setCriticalFocus] = useState([]);
-    const [heatmap, setHeatmap] = useState([]);
-    const [topImproved, setTopImproved] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // 15 minutes stale time
+    const staleTime = 15 * 60 * 1000;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [summaryRes, risksRes, trendRes, criticalRes, heatmapRes, topRes] = await Promise.all([
-                    endpoints.dashboard.getSummary(),
-                    endpoints.risks.getAll(),
-                    endpoints.dashboard.getRiskTrend(),
-                    endpoints.dashboard.getCriticalFocus(),
-                    endpoints.dashboard.getRiskHeatmap(),
-                    endpoints.dashboard.getTopImproved()
-                ]);
+    const { data: summary, isLoading: loadingSummary } = useQuery({
+        queryKey: ['dashboardSummary'],
+        queryFn: () => endpoints.dashboard.getSummary().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
 
-                setSummary(summaryRes.data);
-                setRisks(risksRes.data);
-                setRiskTrend(trendRes.data);
-                setCriticalFocus(criticalRes.data);
-                setHeatmap(heatmapRes.data);
-                setTopImproved(topRes.data);
-            } catch (error) {
-                console.error("Failed to load dashboard data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const { data: risks = [], isLoading: loadingRisks } = useQuery({
+        queryKey: ['risks'],
+        queryFn: () => endpoints.risks.getAll().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
 
-        fetchData();
-        // Poll every 10 seconds for real-time updates
-        const interval = setInterval(fetchData, 10000);
+    const { data: riskTrend = [], isLoading: loadingTrend } = useQuery({
+        queryKey: ['riskTrend'],
+        queryFn: () => endpoints.dashboard.getRiskTrend().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
 
-        return () => clearInterval(interval);
-    }, []);
+    const { data: criticalFocus = [], isLoading: loadingCritical } = useQuery({
+        queryKey: ['criticalFocus'],
+        queryFn: () => endpoints.dashboard.getCriticalFocus().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
+
+    const { data: heatmap = [], isLoading: loadingHeatmap } = useQuery({
+        queryKey: ['riskHeatmap'],
+        queryFn: () => endpoints.dashboard.getRiskHeatmap().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
+
+    const { data: topImproved = [], isLoading: loadingTop } = useQuery({
+        queryKey: ['topImproved'],
+        queryFn: () => endpoints.dashboard.getTopImproved().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
+
+    const isLoading = loadingSummary || loadingRisks || loadingTrend || loadingCritical || loadingHeatmap || loadingTop;
+
+    if (isLoading && !summary) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
+                <LoadingSpinner size="xl" />
+                <p className="mt-4 text-text-secondary animate-pulse">Analyzing workforce data...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-enter">
@@ -100,25 +118,31 @@ const AIRiskCommand = () => {
                         <h3 className="text-lg font-semibold text-text-primary">Risk Trend Analysis</h3>
                         <span className="text-xs font-medium px-2 py-1 rounded bg-primary/10 text-primary">Live Data</span>
                     </div>
-                    <div className="h-[300px] w-full" style={{ height: 300, width: '100%' }}>
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <AreaChart data={riskTrend}>
-                                <defs>
-                                    <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" vertical={false} />
-                                <XAxis dataKey="name" stroke="rgb(var(--text-secondary))" />
-                                <YAxis stroke="rgb(var(--text-secondary))" />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'rgb(var(--surface))', border: '1px solid rgb(var(--border))', color: 'rgb(var(--text-primary))' }}
-                                    itemStyle={{ color: 'rgb(var(--text-primary))' }}
-                                />
-                                <Area type="monotone" dataKey="risk" stroke="#10B981" fillOpacity={1} fill="url(#colorRisk)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="h-[300px] w-full" style={{ height: 300, width: '100%', minHeight: '300px' }}>
+                        {riskTrend && riskTrend.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                <AreaChart data={riskTrend}>
+                                    <defs>
+                                        <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" vertical={false} />
+                                    <XAxis dataKey="name" stroke="rgb(var(--text-secondary))" />
+                                    <YAxis stroke="rgb(var(--text-secondary))" />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgb(var(--surface))', border: '1px solid rgb(var(--border))', color: 'rgb(var(--text-primary))' }}
+                                        itemStyle={{ color: 'rgb(var(--text-primary))' }}
+                                    />
+                                    <Area type="monotone" dataKey="risk" stroke="#10B981" fillOpacity={1} fill="url(#colorRisk)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex h-full items-center justify-center text-text-secondary">
+                                No trend data available to display.
+                            </div>
+                        )}
                     </div>
                 </Card>
 
@@ -128,8 +152,8 @@ const AIRiskCommand = () => {
                         <AlertTriangle className="w-5 h-5" /> Critical Focus
                     </h3>
                     <div className="space-y-3 flex-1 overflow-y-auto max-h-[320px] custom-scrollbar">
-                        {loading ? (
-                            <div className="text-center py-4 text-text-secondary">Loading critical risks...</div>
+                        {loadingCritical ? (
+                            <div className="flex justify-center py-4"><LoadingSpinner size="sm" /></div>
                         ) : criticalFocus.length === 0 ? (
                             <div className="text-center py-4 text-text-secondary">No critical risk employees. System healthy.</div>
                         ) : (
@@ -164,7 +188,7 @@ const AIRiskCommand = () => {
                         <h3 className="text-lg font-semibold text-text-primary">Department Risk Heatmap</h3>
                         <span className="text-xs text-text-secondary">Real-time Overview</span>
                     </div>
-                    {heatmap.length === 0 && !loading ? (
+                    {heatmap.length === 0 && !loadingHeatmap ? (
                         <div className="text-center py-4 text-text-secondary">No department data available.</div>
                     ) : (
                         <div className="grid grid-cols-3 gap-2">
@@ -190,7 +214,7 @@ const AIRiskCommand = () => {
                         <span className="text-xs text-text-secondary">Last 7 Days</span>
                     </div>
                     <div className="space-y-3">
-                        {topImproved.length === 0 && !loading ? (
+                        {topImproved.length === 0 && !loadingTop ? (
                             <div className="text-center py-4 text-text-secondary">No significant improvement data yet.</div>
                         ) : (
                             topImproved.map((item, i) => (

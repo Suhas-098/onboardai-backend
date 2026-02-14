@@ -21,12 +21,13 @@ from config.config import Config
 
 app = Flask(__name__)
 
-# CORS(app, origins=[
-#     "http://localhost:3000",
-#     "https://onboardai-frontend.vercel.app",
-#     "https://onboardai-frontend-7j089zb68-suhas-magadums-projects.vercel.app"
-# ])
-CORS(app)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "*"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
 app.config.from_object(Config)
 init_database(app)

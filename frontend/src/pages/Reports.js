@@ -5,6 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { endpoints } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import api from '../services/api';
 
 const Reports = () => {
     const [downloading, setDownloading] = useState(false);
@@ -28,30 +29,53 @@ const Reports = () => {
 
     const loading = loadingData || loadingTrend;
 
+    // const handleDownload = async (type, filename) => {
+    //     setDownloading(true);
+    //     try {
+    //         const storedUser = localStorage.getItem('onboardai_user');
+    //         const token = storedUser ? JSON.parse(storedUser).token : null;
+    //         const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reports/download/${type}`, {
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`
+    //             }
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error('Download failed');
+    //         }
+
+    //         const blob = await response.blob();
+    //         const url = window.URL.createObjectURL(blob);
+    //         const a = document.createElement('a');
+    //         a.href = url;
+    //         a.download = filename;
+    //         document.body.appendChild(a);
+    //         a.click();
+    //         window.URL.revokeObjectURL(url);
+    //         document.body.removeChild(a);
+    //     } catch (error) {
+    //         console.error("Download Error:", error);
+    //         alert("Failed to download report. Please try again.");
+    //     } finally {
+    //         setDownloading(false);
+    //     }
+    // };
+
     const handleDownload = async (type, filename) => {
         setDownloading(true);
         try {
-            const storedUser = localStorage.getItem('onboardai_user');
-            const token = storedUser ? JSON.parse(storedUser).token : null;
-            const response = await fetch(`http://localhost:5000/api/reports/download/${type}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const response = await api.get(`/reports/download/${type}`, {
+                responseType: 'blob'
             });
 
-            if (!response.ok) {
-                throw new Error('Download failed');
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
+            const url = window.URL.createObjectURL(new Blob([response.data]));
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
+            a.remove();
             window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
         } catch (error) {
             console.error("Download Error:", error);
             alert("Failed to download report. Please try again.");

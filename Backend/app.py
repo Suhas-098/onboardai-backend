@@ -3,7 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-load_dotenv() # Load environment variables from .env
+load_dotenv()
 from config.init_db import init_database
 from routes.auth_routes import auth_routes
 from routes.user_routes import user_routes
@@ -20,8 +20,10 @@ from routes.admin_routes import admin_routes
 from config.config import Config
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-app.config.from_object(Config)
+CORS(app, origins=[
+    "http://localhost:3000",
+    "https://onboardai-frontend.vercel.app"
+])
 
 init_database(app)
 

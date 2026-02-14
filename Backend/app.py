@@ -25,6 +25,7 @@ CORS(app, origins=[
     "https://onboardai-frontend.vercel.app"
 ])
 
+app.config.from_object(Config)
 init_database(app)
 
 app.register_blueprint(auth_routes, url_prefix="/api")

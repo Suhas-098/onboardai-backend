@@ -20,7 +20,6 @@ const EmployeeDetailPage = () => {
     const [error, setError] = useState(null);
 
     // Alert Modal State
-    // Alert Modal State
     const [showAlertModal, setShowAlertModal] = useState(false);
     const [alertMessage, setAlertMessage] = useState("Missed critical deadline — please complete your pending tasks ASAP.");
     const [sendingAlert, setSendingAlert] = useState(false);

@@ -1,15 +1,35 @@
-import { useState, useEffect } from 'react';
-import { FileDown, PieChart, BarChart, TrendingUp, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { FileDown, PieChart, BarChart, TrendingUp } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { endpoints } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Reports = () => {
-    const [data, setData] = useState(null);
-    const [weeklyTrend, setWeeklyTrend] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [downloading, setDownloading] = useState(false);
+
+    // 15 minutes stale time
+    const staleTime = 15 * 60 * 1000;
+
+    const { data, isLoading: loadingData } = useQuery({
+        queryKey: ['reportsSummary'],
+        queryFn: () => endpoints.reports.getSummary().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
+
+    const { data: weeklyTrend = [], isLoading: loadingTrend } = useQuery({
+        queryKey: ['reportsWeeklyTrend'],
+        queryFn: () => endpoints.reports.getWeeklyRiskTrend().then(res => res.data),
+        staleTime,
+        refetchInterval: 10000
+    });
+
+    const loading = loadingData || loadingTrend;
 
     const handleDownload = async (type, filename) => {
+        setDownloading(true);
         try {
             const storedUser = localStorage.getItem('onboardai_user');
             const token = storedUser ? JSON.parse(storedUser).token : null;
@@ -35,37 +55,22 @@ const Reports = () => {
         } catch (error) {
             console.error("Download Error:", error);
             alert("Failed to download report. Please try again.");
+        } finally {
+            setDownloading(false);
         }
     };
 
-    useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const [summaryRes, trendRes] = await Promise.all([
-                    endpoints.reports.getSummary(),
-                    endpoints.reports.getWeeklyRiskTrend()
-                ]);
-                setData(summaryRes.data);
-                setWeeklyTrend(trendRes.data);
-            } catch (error) {
-                console.error("Failed to load reports:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchReports();
-        // Poll every 10 seconds
-        const interval = setInterval(fetchReports, 10000);
-        return () => clearInterval(interval);
-    }, []);
-
-    if (loading) {
-        return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+    if (loading && !data) {
+        return (
+            <div className="flex flex-col items-center justify-center h-96">
+                <LoadingSpinner size="lg" />
+                <p className="mt-4 text-text-secondary">Generating enterprise reports...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-enter">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold">Enterprise Reports</h2>
@@ -89,7 +94,7 @@ const Reports = () => {
                 <Card>
                     <p className="text-sm text-text-secondary">At Risk / Delayed</p>
                     <h3 className="text-2xl font-bold text-danger mt-1">
-                        {data?.risk_summary?.at_risk + data?.risk_summary?.delayed}
+                        {(data?.risk_summary?.at_risk || 0) + (data?.risk_summary?.delayed || 0)}
                     </h3>
                 </Card>
             </div>
@@ -152,7 +157,7 @@ const Reports = () => {
                         <PieChart className="w-5 h-5 text-secondary" /> Department Distribution
                     </h3>
                     <div className="space-y-4">
-                        {data?.department_breakdown.map((dept, i) => (
+                        {data?.department_breakdown?.map((dept, i) => (
                             <div key={i} className="flex items-center justify-between">
                                 <span className="text-text-secondary">{dept.department}</span>
                                 <div className="flex items-center gap-4 flex-1 max-w-[200px] mx-4">
@@ -178,13 +183,24 @@ const Reports = () => {
                             variant="primary"
                             className="w-full"
                             onClick={() => handleDownload('pdf', 'onboardai-report.pdf')}
+                            disabled={downloading}
                         >
-                            <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
+                            {downloading ? (
+                                <>
+                                    <LoadingSpinner size="sm" className="mr-2 text-white" />
+                                    Generating PDF...
+                                </>
+                            ) : (
+                                <>
+                                    <FileDown className="w-4 h-4 mr-2" /> Download Full Analytics PDF
+                                </>
+                            )}
                         </Button>
                         <Button
                             variant="secondary"
                             className="w-full"
                             onClick={() => handleDownload('csv', 'onboardai-report.csv')}
+                            disabled={downloading}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Export Raw CSV
                         </Button>
@@ -192,6 +208,7 @@ const Reports = () => {
                             variant="secondary"
                             className="w-full"
                             onClick={() => handleDownload('excel', 'onboardai-report.xlsx')}
+                            disabled={downloading}
                         >
                             <FileDown className="w-4 h-4 mr-2" /> Download Excel (.xlsx)
                         </Button>

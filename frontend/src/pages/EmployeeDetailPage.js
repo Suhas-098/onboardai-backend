@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Mail, Calendar, Target, Clock, AlertTriangle, Shield, CheckCircle, ArrowLeft, Send, Lock } from 'lucide-react';
+import { Mail, Calendar, Target, AlertTriangle, Shield, CheckCircle, ArrowLeft, Send, Lock } from 'lucide-react';
 import { endpoints } from '../services/api';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
@@ -34,6 +34,7 @@ const EmployeeDetailPage = () => {
     // Edit Task State
     const [editTask, setEditTask] = useState(null);
     const [updatingTask, setUpdatingTask] = useState(false);
+    const [assigningTask, setAssigningTask] = useState(false);
 
     const isAdmin = user?.role === 'admin';
 
@@ -129,7 +130,7 @@ Please complete your pending tasks at the earliest to avoid further delays.</p>
                 <Button variant="ghost" onClick={() => navigate('/employees')} className="gap-2">
                     <ArrowLeft className="w-4 h-4" /> Back to Employees
                 </Button>
-                {!isAdmin && (
+                {(user?.role === 'hr' || user?.role === 'admin') && (
                     <div className="flex gap-3">
                         <Button variant="danger" onClick={() => setShowAlertModal(true)}>
                             <AlertTriangle className="w-4 h-4 mr-2" /> Send Alert
@@ -145,8 +146,21 @@ Please complete your pending tasks at the earliest to avoid further delays.</p>
             <Card className="p-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl" />
                 <div className="flex flex-col md:flex-row gap-6 items-start relative z-10">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-border flex items-center justify-center text-4xl shadow-lg">
-                        {employee.avatar}
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-border flex items-center justify-center text-4xl shadow-lg shrink-0">
+                        {employee.avatar ? (
+                            <img
+                                src={employee.avatar}
+                                alt={employee.name}
+                                className="w-full h-full object-cover rounded-2xl"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerText = employee.name?.charAt(0);
+                                }}
+                            />
+                        ) : (
+                            <span className="text-3xl font-bold text-primary">{employee.name?.charAt(0)}</span>
+                        )}
                     </div>
                     <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
@@ -175,305 +189,319 @@ Please complete your pending tasks at the earliest to avoid further delays.</p>
                 </div>
             </Card>
 
-            {isAdmin ? (
-                <Card className="p-12 text-center border-dashed border-white/10 bg-transparent">
-                    <div className="flex flex-col items-center gap-4 text-text-secondary">
-                        <Shield className="w-12 h-12 opacity-20" />
-                        <h3 className="text-lg font-medium text-text-primary">Restricted Access</h3>
-                        <p className="max-w-md mx-auto">
-                            As an Administrator, you have limited visibility into employee onboarding details.
-                            Task lists, documents, and risk assessments are strictly confidential to HR.
-                        </p>
-                    </div>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Task List (2 cols) */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <Card>
-                            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                                <CheckCircle className="w-5 h-5 text-primary" /> Onboarding Checklist
-                            </h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="text-xs text-text-secondary uppercase border-b border-white/10">
-                                            <th className="py-3 px-4">Task</th>
-                                            <th className="py-3 px-4">Status</th>
-                                            <th className="py-3 px-4">Due Date</th>
-                                            <th className="py-3 px-4">Completed At</th>
-                                            <th className="py-3 px-4">Time Spent</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-sm">
-                                        {tasks.length > 0 ? tasks.map((task) => (
-                                            <tr key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                <td className="py-3 px-4 font-medium text-text-primary">{task.name}</td>
-                                                <td className="py-3 px-4">
-                                                    <Badge variant={
-                                                        task.status === 'Completed' ? 'success' :
-                                                            task.status === 'In Progress' ? 'warning' : 'neutral'
-                                                    }>
-                                                        {task.status}
-                                                    </Badge>
-                                                </td>
-                                                <td className="py-3 px-4 text-text-secondary">{task.dueDate}</td>
-                                                <td className="py-3 px-4 text-text-secondary">{task.completedAt}</td>
-                                                <td className="py-3 px-4 text-text-secondary">{task.timeSpent}</td>
-                                                {!isAdmin && (
-                                                    <td className="py-3 px-4">
-                                                        <Button variant="ghost" size="sm" onClick={() => setEditTask(task)}>
-                                                            Edit
-                                                        </Button>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        )) : (
-                                            <tr>
-                                                <td colSpan="6" className="py-4 text-center text-text-secondary">No tasks assigned.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </Card>
-
-                        {/* Explainable AI Risk */}
-                        <Card>
-                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                <Shield className="w-5 h-5 text-primary" /> AI Risk Assessment
-                            </h3>
-                            <div className="flex gap-4 items-start bg-white/5 p-4 rounded-xl border border-white/5">
-                                <div className="p-2 bg-surface rounded-lg">
-                                    🤖
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-lg text-white mb-1">Risk Status: {employee.risk}</h4>
-                                    <p className="text-text-secondary text-sm mb-2">{employee.riskReason}</p>
-                                    <div className="text-xs text-text-secondary italic">
-                                        AI Confidence: High. Based on task completion velocity and engagement delays.
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-
-                    {/* Activity Log (1 col) */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* HR Task Assignment Panel */}
-                        {!isAdmin && (
+            {
+                isAdmin ? (
+                    <Card className="p-12 text-center border-dashed border-white/10 bg-transparent" >
+                        <div className="flex flex-col items-center gap-4 text-text-secondary">
+                            <Shield className="w-12 h-12 opacity-20" />
+                            <h3 className="text-lg font-medium text-text-primary">Restricted Access</h3>
+                            <p className="max-w-md mx-auto">
+                                As an Administrator, you have limited visibility into employee onboarding details.
+                                Task lists, documents, and risk assessments are strictly confidential to HR.
+                            </p>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Task List (2 cols) */}
+                        <div className="lg:col-span-2 space-y-6">
                             <Card>
-                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                    <Target className="w-5 h-5 text-primary" /> Assign New Task
+                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                    <CheckCircle className="w-5 h-5 text-primary" /> Onboarding Checklist
                                 </h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">Task Title</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
-                                            placeholder="e.g. Upload Bank Details"
-                                            id="taskTitle"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm text-text-secondary mb-1">Due Date</label>
-                                            <input
-                                                type="date"
-                                                className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
-                                                id="taskDue"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-text-secondary mb-1">Priority</label>
-                                            <select className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white" id="taskPriority">
-                                                <option value="Medium">Medium</option>
-                                                <option value="High">High 🚨</option>
-                                                <option value="Low">Low</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm text-text-secondary mb-1">Type</label>
-                                        <select className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white" id="taskType">
-                                            <option value="Document">📄 Document</option>
-                                            <option value="Training">🎓 Training</option>
-                                            <option value="Form">📝 Form</option>
-                                        </select>
-                                    </div>
-                                    <Button className="w-full" onClick={async () => {
-                                        const title = document.getElementById('taskTitle').value;
-                                        const date = document.getElementById('taskDue').value;
-                                        const priority = document.getElementById('taskPriority').value;
-                                        const type = document.getElementById('taskType').value;
-
-                                        if (!title) return alert("Task title is required");
-
-                                        try {
-                                            await endpoints.tasks.assign({
-                                                title,
-                                                due_date: date,
-                                                priority,
-                                                type,
-                                                target_user_id: userId
-                                            });
-                                            alert("Task assigned successfully!");
-                                            // Reload to show new task
-                                            window.location.reload();
-                                        } catch (e) {
-                                            console.error(e);
-                                            alert("Failed to assign task");
-                                        }
-                                    }}>
-                                        + Assign Task
-                                    </Button>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="text-xs text-text-secondary uppercase border-b border-white/10">
+                                                <th className="py-3 px-4">Task</th>
+                                                <th className="py-3 px-4">Status</th>
+                                                <th className="py-3 px-4">Due Date</th>
+                                                <th className="py-3 px-4">Completed At</th>
+                                                <th className="py-3 px-4">Time Spent</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-sm">
+                                            {tasks.length > 0 ? tasks.map((task) => (
+                                                <tr key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                    <td className="py-3 px-4 font-medium text-text-primary">{task.name}</td>
+                                                    <td className="py-3 px-4">
+                                                        <Badge variant={
+                                                            task.status === 'Completed' ? 'success' :
+                                                                task.status === 'In Progress' ? 'warning' : 'neutral'
+                                                        }>
+                                                            {task.status}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-text-secondary">{task.dueDate}</td>
+                                                    <td className="py-3 px-4 text-text-secondary">{task.completedAt}</td>
+                                                    <td className="py-3 px-4 text-text-secondary">{task.timeSpent}</td>
+                                                    {!isAdmin && (
+                                                        <td className="py-3 px-4">
+                                                            <Button variant="ghost" size="sm" onClick={() => setEditTask(task)}>
+                                                                Edit
+                                                            </Button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            )) : (
+                                                <tr>
+                                                    <td colSpan="6" className="py-4 text-center text-text-secondary">No tasks assigned.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </Card>
-                        )}
 
-                        <ActivityLog activities={activities} />
+                            {/* Explainable AI Risk */}
+                            <Card>
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    <Shield className="w-5 h-5 text-primary" /> AI Risk Assessment
+                                </h3>
+                                <div className="flex gap-4 items-start bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div className="p-2 bg-surface rounded-lg">
+                                        🤖
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-lg text-white mb-1">Risk Status: {employee.risk}</h4>
+                                        <p className="text-text-secondary text-sm mb-2">{employee.riskReason}</p>
+                                        <div className="text-xs text-text-secondary italic">
+                                            AI Confidence: High. Based on task completion velocity and engagement delays.
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+
+                        {/* Activity Log (1 col) */}
+                        <div className="lg:col-span-1 space-y-6">
+                            {/* HR Task Assignment Panel */}
+                            {/* Only HR/Admin can assign tasks */}
+                            {(user?.role === 'hr' || user?.role === 'admin') && (
+                                <Card>
+                                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                        <Target className="w-5 h-5 text-primary" /> Assign New Task
+                                    </h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm text-text-secondary mb-1">Task Title</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
+                                                placeholder="e.g. Upload Bank Details"
+                                                id="taskTitle"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm text-text-secondary mb-1">Due Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full bg-surface-light border border-border rounded-lg p-2 text-text-primary"
+                                                    id="taskDue"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm text-text-secondary mb-1">Priority</label>
+                                                <select className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white" id="taskPriority">
+                                                    <option value="Medium">Medium</option>
+                                                    <option value="High">High 🚨</option>
+                                                    <option value="Low">Low</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-text-secondary mb-1">Type</label>
+                                            <select className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white" id="taskType">
+                                                <option value="Document">📄 Document</option>
+                                                <option value="Training">🎓 Training</option>
+                                                <option value="Form">📝 Form</option>
+                                            </select>
+                                        </div>
+                                        <Button
+                                            className="w-full"
+                                            isLoading={assigningTask}
+                                            onClick={async () => {
+                                                const title = document.getElementById('taskTitle').value;
+                                                const date = document.getElementById('taskDue').value;
+                                                const priority = document.getElementById('taskPriority').value;
+                                                const type = document.getElementById('taskType').value;
+
+                                                if (!title) return alert("Task title is required");
+
+                                                setAssigningTask(true);
+                                                try {
+                                                    await endpoints.tasks.assign({
+                                                        title,
+                                                        due_date: date,
+                                                        priority,
+                                                        type,
+                                                        target_user_id: userId
+                                                    });
+                                                    alert("Task assigned successfully!");
+                                                    // Reload to show new task
+                                                    window.location.reload();
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    alert("Failed to assign task");
+                                                } finally {
+                                                    setAssigningTask(false);
+                                                }
+                                            }}>
+                                            + Assign Task
+                                        </Button>
+                                    </div>
+                                </Card>
+                            )}
+
+                            <ActivityLog activities={activities} />
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
             {/* Alert Modal (In-App Only) */}
-            {showAlertModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md p-6 border-danger/20 shadow-glow-danger">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-danger" /> Send In-App Alert
-                        </h3>
-                        <p className="text-sm text-text-secondary mb-4">
-                            This will trigger a visual notification in the employee's dashboard. NO email will be sent.
-                        </p>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Message</label>
-                                <textarea
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-24"
-                                    placeholder="Enter alert message..."
-                                    value={alertMessage}
-                                    onChange={(e) => setAlertMessage(e.target.value)}
-                                />
+            {
+                showAlertModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <Card className="w-full max-w-md p-6 border-danger/20 shadow-glow-danger">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-danger" /> Send In-App Alert
+                            </h3>
+                            <p className="text-sm text-text-secondary mb-4">
+                                This will trigger a visual notification in the employee's dashboard. NO email will be sent.
+                            </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Message</label>
+                                    <textarea
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-24"
+                                        placeholder="Enter alert message..."
+                                        value={alertMessage}
+                                        onChange={(e) => setAlertMessage(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button variant="ghost" onClick={() => setShowAlertModal(false)}>Cancel</Button>
+                                    <Button variant="danger" onClick={handleSendAlert} disabled={sendingAlert}>
+                                        {sendingAlert ? "Sending..." : "Send Alert"}
+                                    </Button>
+                                </div>
                             </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <Button variant="ghost" onClick={() => setShowAlertModal(false)}>Cancel</Button>
-                                <Button variant="danger" onClick={handleSendAlert} disabled={sendingAlert}>
-                                    {sendingAlert ? "Sending..." : "Send Alert"}
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
+                        </Card>
+                    </div>
+                )
+            }
 
             {/* Email Modal (Resend Only) */}
-            {showEmailModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <Mail className="w-5 h-5 text-primary" /> Send Email via Resend
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Subject</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
-                                    value={emailSubject}
-                                    onChange={(e) => setEmailSubject(e.target.value)}
-                                />
+            {
+                showEmailModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                <Mail className="w-5 h-5 text-primary" /> Send Email via Resend
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Subject</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                        value={emailSubject}
+                                        onChange={(e) => setEmailSubject(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Email Body (HTML supported)</label>
+                                    <textarea
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-40 font-mono text-sm"
+                                        value={emailBody}
+                                        onChange={(e) => setEmailBody(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button variant="ghost" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+                                    <Button variant="primary" onClick={handleSendEmail} disabled={sendingEmail}>
+                                        {sendingEmail ? "Sending..." : "Send Email"} <Send className="w-4 h-4 ml-2" />
+                                    </Button>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Email Body (HTML supported)</label>
-                                <textarea
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white h-40 font-mono text-sm"
-                                    value={emailBody}
-                                    onChange={(e) => setEmailBody(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <Button variant="ghost" onClick={() => setShowEmailModal(false)}>Cancel</Button>
-                                <Button variant="primary" onClick={handleSendEmail} disabled={sendingEmail}>
-                                    {sendingEmail ? "Sending..." : "Send Email"} <Send className="w-4 h-4 ml-2" />
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
+                        </Card>
+                    </div>
+                )
+            }
             {/* Edit Task Modal */}
-            {editTask && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
-                        <h3 className="text-xl font-bold mb-4">Edit Task: {editTask.name}</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Title</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
-                                    defaultValue={editTask.name}
-                                    id="editTitle"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Due Date</label>
-                                <input
-                                    type="date"
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
-                                    defaultValue={editTask.dueDate}
-                                    id="editDue"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-1">Status</label>
-                                <select
-                                    className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
-                                    id="editStatus"
-                                    defaultValue={editTask.status}
-                                >
-                                    <option value="Pending">Pending</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Completed">Completed ✅</option>
-                                    <option value="Exception">Exception ⚠️</option>
-                                    <option value="Waived">Waived ⏭️</option>
-                                </select>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
-                                <Button variant="primary" disabled={updatingTask} onClick={async () => {
-                                    setUpdatingTask(true);
-                                    try {
-                                        const title = document.getElementById('editTitle').value;
-                                        const date = document.getElementById('editDue').value;
-                                        const status = document.getElementById('editStatus').value;
+            {
+                editTask && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <Card className="w-full max-w-md p-6 border-primary/20 shadow-glow-primary">
+                            <h3 className="text-xl font-bold mb-4">Edit Task: {editTask.name}</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Title</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                        defaultValue={editTask.name}
+                                        id="editTitle"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Due Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                        defaultValue={editTask.dueDate}
+                                        id="editDue"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-1">Status</label>
+                                    <select
+                                        className="w-full bg-surface-light border border-white/10 rounded-lg p-2 text-white"
+                                        id="editStatus"
+                                        defaultValue={editTask.status}
+                                    >
+                                        <option value="Pending">Pending</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed ✅</option>
+                                        <option value="Exception">Exception ⚠️</option>
+                                        <option value="Waived">Waived ⏭️</option>
+                                    </select>
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button variant="ghost" onClick={() => setEditTask(null)}>Cancel</Button>
+                                    <Button variant="primary" disabled={updatingTask} onClick={async () => {
+                                        setUpdatingTask(true);
+                                        try {
+                                            const title = document.getElementById('editTitle').value;
+                                            const date = document.getElementById('editDue').value;
+                                            const status = document.getElementById('editStatus').value;
 
-                                        await endpoints.tasks.update(editTask.id, {
-                                            title,
-                                            due_date: date,
-                                            status
-                                        });
+                                            await endpoints.tasks.update(editTask.id, {
+                                                title,
+                                                due_date: date,
+                                                status
+                                            });
 
-                                        alert("Task updated successfully!");
-                                        window.location.reload();
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert("Failed to update task.");
-                                    } finally {
-                                        setUpdatingTask(false);
-                                        setEditTask(null);
-                                    }
-                                }}>
-                                    {updatingTask ? "Updating..." : "Save Changes"}
-                                </Button>
+                                            alert("Task updated successfully!");
+                                            window.location.reload();
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Failed to update task.");
+                                        } finally {
+                                            setUpdatingTask(false);
+                                            setEditTask(null);
+                                        }
+                                    }}>
+                                        {updatingTask ? "Updating..." : "Save Changes"}
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
-        </div>
+                        </Card>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

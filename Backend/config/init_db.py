@@ -13,4 +13,4 @@ def init_database(app):
         from models.task_message import TaskMessage
         from models.onboarding_template import OnboardingTemplate, TemplateTask
         
-        db.create_all()
+#         db.create_all()

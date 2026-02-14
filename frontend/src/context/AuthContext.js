@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
 const AuthContext = createContext();
@@ -8,6 +9,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         // Check local storage for persisted session
@@ -41,8 +43,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        setUser(null);
         localStorage.removeItem('onboardai_user');
+        localStorage.removeItem('onboardai_token');
+        queryClient.removeQueries();
+        queryClient.clear();
+        window.location.href = '/login';
     };
 
     const value = {

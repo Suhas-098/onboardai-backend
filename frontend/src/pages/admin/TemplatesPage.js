@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Video, FileText, Upload, CheckSquare, Pencil } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -25,11 +25,7 @@ const TemplatesPage = () => {
         description: ''
     });
 
-    useEffect(() => {
-        fetchTemplates();
-    }, []);
-
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             const res = await endpoints.templates.getAll();
             setTemplates(res.data);
@@ -39,7 +35,11 @@ const TemplatesPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchTemplates();
+    }, [fetchTemplates]);
 
     const handleAddTaskToDraft = () => {
         if (!taskInput.task_name) return;

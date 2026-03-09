@@ -149,11 +149,20 @@ def assign_template(user_id, template_id):
         new_progress = Progress(
             user_id=user.id,
             task_id=new_task.id,
-            completion=0,
-            status="Not Started"
+            completion=0
         )
         db.session.add(new_progress)
         created_tasks.append(new_task.title)
+
+    # Added ActivityLog for tracking assignment time correctly for low engagement logic
+    from models.activity_log import ActivityLog
+    log = ActivityLog(
+        user_id=user.id,
+        action=f"Assigned template '{template.name}' tasks",
+        timestamp=datetime.now(),
+        details=f"Generated {len(created_tasks)} tasks"
+    )
+    db.session.add(log)
 
     db.session.commit()
     

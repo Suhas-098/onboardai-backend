@@ -51,6 +51,20 @@ app.register_blueprint(notification_routes, url_prefix="/api")
 app.register_blueprint(search_routes, url_prefix="/api")
 
 
+import logging
+from logging.handlers import RotatingFileHandler
+import traceback
+
+handler = RotatingFileHandler('error_log.txt', maxBytes=100000, backupCount=1)
+handler.setLevel(logging.ERROR)
+app.logger.addHandler(handler)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    with open("error_log.txt", "a") as f:
+        f.write(f"Unhandled Exception: {e}\n{traceback.format_exc()}\n")
+    return getattr(e, 'description', "Internal Server Error"), 500
+
 @app.route("/")
 def home():
     return "🚀 OnboardAI Backend Running.."

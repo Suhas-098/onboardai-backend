@@ -144,35 +144,38 @@ Please complete your pending tasks at the earliest to avoid further delays.</p>
             {/* Profile Header */}
             <Card className="p-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl" />
-                <div className="flex flex-col md:flex-row gap-6 items-start relative z-10">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-border flex items-center justify-center text-4xl shadow-lg shrink-0">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10 w-full">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-surface-light to-surface border border-border flex items-center justify-center text-4xl shadow-lg shrink-0 overflow-hidden">
                         {employee.avatar ? (
                             <img
                                 src={employee.avatar}
                                 alt={employee.name}
                                 className="w-full h-full object-cover rounded-2xl"
                                 onError={(e) => {
-                                    e.target.onerror = null;
                                     e.target.style.display = 'none';
-                                    e.target.parentElement.innerText = employee.name?.charAt(0);
+                                    e.target.nextSibling.style.display = 'block';
                                 }}
                             />
-                        ) : (
-                            <span className="text-3xl font-bold text-primary">{employee.name?.charAt(0)}</span>
-                        )}
+                        ) : null}
+                        {/* Fallback initials displayed if no avatar or image fails */}
+                        <span className="text-3xl font-bold text-primary" style={{ display: employee.avatar ? 'none' : 'block' }}>
+                            {employee.name?.charAt(0)}
+                        </span>
                     </div>
-                    <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-2 text-center md:text-left">
+                        <div className="flex flex-col md:flex-row items-center md:items-start md:gap-3">
                             <h1 className="text-3xl font-bold text-text-primary">{employee.name}</h1>
-                            {/* Only show Risk info if not admin and data exists */}
-                            {!isAdmin && employee.risk && (
-                                <Badge variant={getRiskColor(employee.risk)}>{employee.risk}</Badge>
-                            )}
-                            {isAdmin && (
-                                <Badge variant="neutral"><Lock className="w-3 h-3 mr-1" /> Admin View</Badge>
-                            )}
+                            <div className="flex items-center gap-2 mt-2 md:mt-0">
+                                {/* Only show Risk info if not admin and data exists */}
+                                {!isAdmin && employee.risk && (
+                                    <Badge variant={getRiskColor(employee.risk)}>{employee.risk}</Badge>
+                                )}
+                                {isAdmin && (
+                                    <Badge variant="neutral"><Lock className="w-3 h-3 mr-1" /> Admin View</Badge>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex flex-wrap gap-4 text-text-secondary">
+                        <div className="flex flex-wrap justify-center md:justify-start gap-4 text-text-secondary">
                             <span className="flex items-center gap-1"><Shield className="w-4 h-4" /> {employee.role}</span>
                             <span className="flex items-center gap-1"><Target className="w-4 h-4" /> {employee.department}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Joined {employee.joinedDate}</span>
@@ -180,7 +183,7 @@ Please complete your pending tasks at the earliest to avoid further delays.</p>
                         </div>
                     </div>
                     {!isAdmin && (
-                        <div className="text-right">
+                        <div className="text-center md:text-right w-full md:w-auto mt-4 md:mt-0">
                             <div className="text-sm text-text-secondary mb-1">Onboarding Progress</div>
                             <div className="text-3xl font-mono font-bold text-primary">{employee.score}%</div>
                         </div>

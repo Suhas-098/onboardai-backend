@@ -48,6 +48,55 @@ class AlertService:
         except Exception as e:
             print(f"Error fetching overdue tasks: {e}")
 
+        # 3. Check for Low Engagement
+        try:
+            from models.progress import Progress
+            from models.activity_log import ActivityLog
+            users = User.query.filter_by(role="employee").all()
+            for user in users:
+                user_tasks = Task.query.filter_by(assigned_to=user.id).all()
+                if not user_tasks:
+                    continue
+                
+                # Check task completion count
+                user_progress = Progress.query.filter_by(user_id=user.id).all()
+                completed_count = sum(1 for p in user_progress if p.completion == 100)
+                
+                # If they completed any task, no low engagement alert
+                if completed_count > 0:
+                    continue
+                    
+                # Calculate task assignment timestamp (using joined_date or ActivityLog)
+                from sqlalchemy import or_
+                assignment_logs = ActivityLog.query.filter(
+                    ActivityLog.user_id == user.id,
+                    or_(
+                        ActivityLog.action.ilike("%Assigned%"),
+                        ActivityLog.action.ilike("%started%")
+                    )
+                ).order_by(ActivityLog.timestamp.desc()).first()
+                
+                assignment_time = assignment_logs.timestamp if assignment_logs else user.joined_date
+                if not assignment_time:
+                    assignment_time = datetime.now()
+                    
+                hours_since_assignment = (datetime.now() - assignment_time).total_seconds() / 3600
+                
+                # Generate dynamic alert if > 24 hours
+                if hours_since_assignment > 24:
+                    results.append({
+                        "id": f"low_eng_{user.id}",
+                        "level": "Warning",
+                        "type": "Warning",
+                        "title": "Low Engagement Detected",
+                        "message": "Low engagement detected",
+                        "time": "Needs Attention",
+                        "target_user_id": user.id,
+                        "created_at": datetime.now().isoformat()
+                    })
+        except Exception as e:
+            print(f"Error calculating low engagement: {e}")
+
         return results
 
     @staticmethod

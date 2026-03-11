@@ -147,7 +147,7 @@ const EmployeeDashboard = () => {
 
     const { data: notifications = [], isLoading: loadingNotifs } = useQuery({
         queryKey: ['employeeNotifs', user?.id],
-        queryFn: () => endpoints.notifications.getAll(user.id).then(res => res.data),
+        queryFn: () => endpoints.notifications.getAll(user.id).then(res => res.data.notifications || []),
         enabled: !!user?.id,
         staleTime
     });

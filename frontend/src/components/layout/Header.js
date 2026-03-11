@@ -15,8 +15,9 @@ const Header = () => {
         if (!user?.id) return;
         try {
             const res = await endpoints.notifications.getAll(user.id);
-            setAlerts(res.data);
-            setUnreadCount(res.data.filter(n => !n.is_read).length);
+            const notificationsArray = res.data.notifications || [];
+            setAlerts(notificationsArray);
+            setUnreadCount(notificationsArray.filter(n => !n.is_read).length);
         } catch (error) {
             console.error("Failed to load notifications");
         }

@@ -23,6 +23,8 @@ const NotificationsPanel = ({ isOpen, onClose, alerts = [] }) => {
 
     if (!isOpen) return null;
 
+    const safeAlerts = Array.isArray(alerts) ? alerts : [];
+
     return (
         <div
             ref={panelRef}
@@ -38,14 +40,14 @@ const NotificationsPanel = ({ isOpen, onClose, alerts = [] }) => {
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto">
-                {alerts.length === 0 ? (
+                {safeAlerts.length === 0 ? (
                     <div className="p-8 text-center text-text-secondary flex flex-col items-center">
                         <Bell className="w-8 h-8 mb-2 opacity-20" />
                         <p className="text-sm">No new notifications</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-white/5">
-                        {alerts.map((alert) => (
+                        {safeAlerts.map((alert) => (
                             <div
                                 key={alert.id}
                                 className={`p-4 hover:bg-white/5 transition-colors cursor-pointer ${alert.type === 'Critical' ? 'bg-danger/5' : ''}`}

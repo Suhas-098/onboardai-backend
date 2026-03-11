@@ -86,33 +86,6 @@ def get_all_risks():
                         final_risk_level = 'Warning'
                         final_risk_message = alert_data['reasons'][0] if alert_data['reasons'] else "Warning Alerts Detected"
 
-                # Generate AI Insights using restored ai_service
-                insight = None
-                try:
-                    from services.ai_service import generate_employee_insight, _fallback_insight
-                    ai_context = {
-                        "user_id": user.id,
-                        "name": user.name,
-                        "department": user.department,
-                        "completion_percentage": round(total_completion, 1),
-                        "tasks_assigned": len(progress_list),
-                        "alert_status": alert_data.get('status', 'Healthy') if alert_data else 'Healthy',
-                        "alert_data_status": alert_data.get('status', 'Healthy') if alert_data else 'Healthy',
-                        "missed_deadlines": "Yes" if final_risk_level == 'Critical' else "No",
-                        "risk_reasons": alert_data.get('reasons', []) if alert_data else []
-                    }
-                    
-                    # Only call Gemini for high-risk employees
-                    if final_risk_level != "Critical" and final_risk_level != "Warning":
-                        print(f"[AI] Skipping Gemini for low-risk user {user.id}")
-                        insight = _fallback_insight(ai_context, "AI skipped for low risk employee")
-                    else:
-                        print(f"[AI] Generating insight for user {user.id}")
-                        insight = generate_employee_insight(ai_context)
-                except Exception as insight_error:
-                    print(f"AI Insight generation error for user {user.id}: {insight_error}")
-                    insight = None
-
                 result_item = {
                     "user_id": user.id,
                     "name": user.name,
@@ -120,12 +93,32 @@ def get_all_risks():
                     "department": user.department,
                     "risk": final_risk_level, 
                     "risk_message": final_risk_message,
+                    "reasons": alert_data.get('reasons', []) if alert_data else [],
                     "score": round(total_completion, 1),
                     "prediction": analysis["prediction"],
                     "recommended_actions": analysis["recommended_actions"]
                 }
                 
-                # Add AI insights if available
+                # We need ai_insight for insights tab. 
+                # RULE: AI Insights should be generated ONLY for employees whose progress is less than 100%.
+                insight = None
+                if total_completion < 100:
+                    try:
+                        from services.ai_service import generate_employee_insight
+                        ai_context = {
+                            "user_id": user.id,
+                            "name": user.name,
+                            "department": user.department,
+                            "completion_percentage": round(total_completion, 1),
+                            "tasks_assigned": len(progress_list) if progress_list else 0,
+                            "alert_status": alert_data.get('status', 'Healthy') if alert_data else 'Healthy',
+                            "missed_deadlines": "Yes" if final_risk_level == 'Critical' else "No",
+                            "risk_reasons": alert_data.get('reasons', []) if alert_data else []
+                        }
+                        insight = generate_employee_insight(ai_context)
+                    except Exception as e:
+                        print(f"Error generating insight for {user.id}: {e}")
+                
                 if insight:
                     result_item["ai_insight"] = {
                         "risk_insight": insight.get("risk_insight", ""),

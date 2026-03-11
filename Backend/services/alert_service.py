@@ -34,30 +34,37 @@ class AlertService:
                 total_completion += (p.completion or 0)
                 if (p.completion or 0) < 100:
                     all_completed = False
-                    
-            for task in tasks:
-                # A task is conceptually incomplete if it's not marked Done AND progress isn't 100%
-                task_prog = next((p for p in user_progress if p.task_id == task.id), None)
-                prog_val = task_prog.completion if task_prog else 0
-                if task.status.lower() != 'completed' and prog_val < 100:
-                    all_completed = False
-        else:
-            all_completed = False
             
-        # 2. Missed Deadline Check
-        if not all_completed:
-            overdue_tasks = []
-            for t in tasks:
-                if t.due_date and t.due_date < datetime.now():
-                    task_prog = next((p for p in user_progress if p.task_id == t.id), None)
-                    prog_val = task_prog.completion if task_prog else 0
-                    if t.status.lower() != 'completed' and prog_val < 100:
-                        overdue_tasks.append(t)
-            if len(overdue_tasks) > 0:
-                result["missedDeadline"] = True
-                result["reasons"].append(f"Missed Critical Deadline for: {overdue_tasks[0].title}")
+            # RULE 1: If progress is 100% OR all items are 100%, they are NOT at risk
+            avg_completion = total_completion / len(tasks) if tasks else 0
+            if avg_completion >= 100:
+                all_completed = True
+        else:
+            # No tasks means they're effectively done/not on track yet
+            all_completed = True
 
-        # 3. Low Engagement Check
+        # MANDATORY EARLY RETURN FOR COMPLETED EMPLOYEES (Rule 1)
+        if all_completed:
+            return {
+                "lowEngagement": False,
+                "missedDeadline": False,
+                "reasons": [],
+                "status": "On Track"
+            }
+            
+        # 2. Missed Deadline Check (Only for incomplete)
+        overdue_tasks = []
+        for t in tasks:
+            if t.due_date and t.due_date < datetime.now():
+                task_prog = next((p for p in user_progress if p.task_id == t.id), None)
+                prog_val = task_prog.completion if task_prog else 0
+                if t.status.lower() != 'completed' and prog_val < 100:
+                    overdue_tasks.append(t)
+        if len(overdue_tasks) > 0:
+            result["missedDeadline"] = True
+            result["reasons"].append(f"Missed Critical Deadline for: {overdue_tasks[0].title}")
+
+        # 3. Low Engagement Check — ONLY for incomplete employees (Rule 2)
         last_login = ActivityLog.query.filter(
             ActivityLog.user_id == user.id,
             ActivityLog.action.ilike("Logged in")
@@ -71,7 +78,7 @@ class AlertService:
         if hours_inactive > 24:
             result["lowEngagement"] = True
             result["reasons"].append("Low Engagement Detected")
-            
+        
         # 4. Enforce Precedence Status
         if result["missedDeadline"]:
             result["status"] = "Delayed"

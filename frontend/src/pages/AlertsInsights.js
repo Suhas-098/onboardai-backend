@@ -182,6 +182,7 @@ const AlertsInsights = () => {
 
                                                 {/* Risk Insight Text */}
                                                 <div className="bg-white/5 p-4 rounded-lg border border-white/5 mb-4">
+                                                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Behavioral Insight</p>
                                                     <p className="text-sm text-text-primary leading-relaxed">
                                                         {insight.risk_insight}
                                                     </p>
@@ -206,6 +207,16 @@ const AlertsInsights = () => {
                                                         "{insight.ai_prediction}"
                                                     </p>
                                                 </div>
+
+                                                {/* Risk Explanation */}
+                                                {insight.risk_explanation && (
+                                                    <div className="bg-danger/5 p-4 rounded-lg border border-danger/10 mb-4">
+                                                        <p className="text-xs font-semibold text-danger uppercase tracking-wider mb-1">Risk Explanation</p>
+                                                        <p className="text-sm text-text-primary leading-relaxed">
+                                                            {insight.risk_explanation}
+                                                        </p>
+                                                    </div>
+                                                )}
 
                                                 {/* Action Buttons */}
                                                 <div className="flex gap-3">

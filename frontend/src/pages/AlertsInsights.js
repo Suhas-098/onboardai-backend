@@ -71,8 +71,33 @@ const AlertsInsights = () => {
         refetchInterval: 10000
     });
 
-    const alerts = risks.filter(r => r.risk === 'Critical' || r.risk === 'Warning');
-    const insights = risks.filter(r => r.ai_insight);
+    // MANDATORY RULE: Filter out employees with 100% progress
+    const filteredRisks = risks.filter(emp => emp.score < 100);
+
+    // Group at-risk employees by user_id so each employee shows as ONE card with ALL their alerts
+    const alertEmployees = filteredRisks.reduce((acc, r) => {
+        if (r.risk !== 'Critical' && r.risk !== 'Warning') return acc;
+        if (!acc[r.user_id]) {
+            acc[r.user_id] = { ...r, alertReasons: [] };
+        }
+        // Collect the risk_message as a bullet reason if not already there
+        if (r.risk_message && !acc[r.user_id].alertReasons.includes(r.risk_message)) {
+            acc[r.user_id].alertReasons.push(r.risk_message);
+        }
+        // Collect additional reasons passed from backend
+        if (r.reasons && Array.isArray(r.reasons)) {
+            r.reasons.forEach(reason => {
+                if (!acc[r.user_id].alertReasons.includes(reason)) {
+                    acc[r.user_id].alertReasons.push(reason);
+                }
+            });
+        }
+        // Escalate risk level to the highest seen
+        if (r.risk === 'Critical') acc[r.user_id].risk = 'Critical';
+        return acc;
+    }, {});
+    const alerts = Object.values(alertEmployees);
+    const insights = filteredRisks.filter(r => r.ai_insight);
     return (
         <div className="space-y-12">
             <div className="flex items-center justify-between">
@@ -97,6 +122,11 @@ const AlertsInsights = () => {
                         <h3 className="text-xl font-semibold flex items-center gap-2 text-danger">
                             <ShieldAlert className="w-5 h-5" />
                             Active Alerts
+                            {alerts.length > 0 && (
+                                <span className="ml-2 text-sm font-normal bg-danger/10 text-danger px-2 py-0.5 rounded-full border border-danger/20">
+                                    {alerts.length} employee{alerts.length !== 1 ? 's' : ''}
+                                </span>
+                            )}
                         </h3>
 
                         <div className="space-y-4">
@@ -113,15 +143,28 @@ const AlertsInsights = () => {
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <h4 className="font-bold text-lg text-text-primary">{item.risk_message}</h4>
-                                                    <p className="text-text-secondary mt-1">
-                                                        Employee <span className="text-text-primary font-medium">{item.name}</span> is at <span className="text-danger font-medium">{item.risk} Risk</span> level.
+                                                    <h4 className="font-bold text-lg text-text-primary">{item.name}</h4>
+                                                    <p className="text-text-secondary text-sm mt-0.5">
+                                                        <span className="text-danger font-medium">{item.risk} Risk</span> — Score: {item.score}%
                                                     </p>
                                                 </div>
                                                 <span className="text-xs font-mono text-text-secondary bg-white/5 px-2 py-1 rounded">
-                                                    Score: {item.score}%
+                                                    {item.alertReasons?.length || 1} alert{(item.alertReasons?.length || 1) !== 1 ? 's' : ''}
                                                 </span>
                                             </div>
+
+                                            {/* Combined alert bullet list */}
+                                            <ul className="mt-3 space-y-1">
+                                                {(item.alertReasons && item.alertReasons.length > 0
+                                                    ? item.alertReasons
+                                                    : [item.risk_message]
+                                                ).map((reason, idx) => (
+                                                    <li key={idx} className="flex items-start gap-2 text-sm text-text-primary">
+                                                        <span className="text-danger mt-0.5">•</span>
+                                                        <span>{reason}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
 
                                             <div className="mt-4 flex gap-3">
                                                 <Button

@@ -120,12 +120,19 @@ def get_weekly_risk_trend():
 def download_pdf():
     try:
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
 
         elements = []
         styles = getSampleStyleSheet()
+        
+        title_style = styles["Heading1"]
+        title_style.alignment = 1 # Center
+        subtitle_style = styles["Heading2"]
+        subtitle_style.textColor = colors.HexColor("#2C3E50")
+        subtitle_style.spaceAfter = 10
+        normal_style = styles["Normal"]
 
-        title = Paragraph("OnboardAI — Enterprise Analytics Report", styles["Title"])
+        title = Paragraph("Onboarding Risk Analysis Report", title_style)
         elements.append(title)
         elements.append(Spacer(1, 12))
 
@@ -139,24 +146,126 @@ def download_pdf():
         elements.append(Spacer(1, 20))
 
         stats = AlertService.get_dashboard_stats()
+        user_risks = AlertService.get_user_risks() or {}
 
+        # 1. Summary Metrics
+        elements.append(Paragraph("1. Summary Metrics", subtitle_style))
         overview_data = [
             ["Metric", "Value"],
-            ["Total Employees", stats.get("total_employees", 0)],
+            ["Total Employees", str(stats.get("total_employees", 0))],
             ["Avg Completion %", f"{stats.get('avg_completion',0)}%"],
-            ["On Track", stats.get("on_track", 0)],
-            ["At Risk / Delayed", stats.get("at_risk", 0) + stats.get("delayed", 0)]
+            ["Time to Onboard Target", "14 Days"]
         ]
-
-        table = Table(overview_data)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0),(-1,0), colors.grey),
-            ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
-            ("GRID",(0,0),(-1,-1),1,colors.black)
+        
+        summary_table = Table(overview_data, colWidths=[200, 100])
+        summary_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#34495E")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+            ("ALIGN", (0,0), (-1,-1), "LEFT"),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("BOTTOMPADDING", (0,0), (-1,0), 8),
+            ("BACKGROUND", (0,1), (-1,-1), colors.HexColor("#ECF0F1")),
+            ("GRID", (0,0), (-1,-1), 1, colors.white)
         ]))
-
-        elements.append(table)
-        elements.append(Spacer(1,20))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+        
+        # 2. Employee Status Breakdown
+        elements.append(Paragraph("2. Employee Status Breakdown", subtitle_style))
+        status_data = [
+            ["Status", "Count"],
+            ["On Track", str(stats.get("on_track", 0))],
+            ["At Risk", str(stats.get("at_risk", 0))],
+            ["Delayed", str(stats.get("delayed", 0))]
+        ]
+        
+        status_table = Table(status_data, colWidths=[200, 100])
+        status_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#34495E")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+            ("ALIGN", (0,0), (-1,-1), "LEFT"),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("BOTTOMPADDING", (0,0), (-1,0), 8),
+            ("BACKGROUND", (0,1), (-1,-1), colors.HexColor("#ECF0F1")),
+            ("GRID", (0,0), (-1,-1), 1, colors.white)
+        ]))
+        elements.append(status_table)
+        elements.append(Spacer(1, 25))
+        
+        # Group users by status
+        delayed_users = []
+        at_risk_users = []
+        on_track_users = []
+        
+        for data in user_risks.values():
+            status = data.get("status")
+            user = data.get("user")
+            reasons_text = "; ".join(data.get("reasons", []))
+            reasons_para = Paragraph(reasons_text, normal_style) if reasons_text else "N/A"
+            row = [getattr(user, "name", ""), getattr(user, "department", "N/A"), reasons_para]
+            
+            if status == "Delayed":
+                delayed_users.append(row)
+            elif status == "At Risk":
+                at_risk_users.append(row)
+            else:
+                on_track_users.append([getattr(user, "name", ""), getattr(user, "department", "N/A"), "N/A"])
+                
+        # 3. High Risk Employees (Delayed)
+        elements.append(Paragraph("3. High Risk Employees (Delayed)", subtitle_style))
+        if delayed_users:
+            delayed_data = [["Employee Name", "Department", "Risk Reasons"]] + delayed_users
+            delayed_table = Table(delayed_data, colWidths=[150, 120, 250])
+            delayed_table.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#E74C3C")),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0,0), (-1,0), 8),
+                ("GRID", (0,0), (-1,-1), 1, colors.HexColor("#BDC3C7"))
+            ]))
+            elements.append(delayed_table)
+        else:
+            elements.append(Paragraph("No employees in 'Delayed' status.", normal_style))
+        elements.append(Spacer(1, 25))
+        
+        # 4. At Risk Employees
+        elements.append(Paragraph("4. At Risk Employees", subtitle_style))
+        if at_risk_users:
+            at_risk_data = [["Employee Name", "Department", "Risk Reasons"]] + at_risk_users
+            at_risk_table = Table(at_risk_data, colWidths=[150, 120, 250])
+            at_risk_table.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#F39C12")),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0,0), (-1,0), 8),
+                ("GRID", (0,0), (-1,-1), 1, colors.HexColor("#BDC3C7"))
+            ]))
+            elements.append(at_risk_table)
+        else:
+            elements.append(Paragraph("No employees in 'At Risk' status.", normal_style))
+        elements.append(Spacer(1, 25))
+        
+        # 5. On Track Employees
+        elements.append(Paragraph("5. On Track Employees", subtitle_style))
+        if on_track_users:
+            on_track_data = [["Employee Name", "Department", "Status"]] + on_track_users
+            on_track_table = Table(on_track_data, colWidths=[150, 120, 250])
+            on_track_table.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#27AE60")),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0,0), (-1,0), 8),
+                ("GRID", (0,0), (-1,-1), 1, colors.HexColor("#BDC3C7"))
+            ]))
+            elements.append(on_track_table)
+        else:
+            elements.append(Paragraph("No employees in 'On Track' status.", normal_style))
 
         doc.build(elements)
         buffer.seek(0)

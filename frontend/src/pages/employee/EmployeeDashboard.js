@@ -218,16 +218,14 @@ const EmployeeDashboard = () => {
         <div className="max-w-5xl mx-auto space-y-8 animate-enter pb-20">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary p-0.5">
-                        <div className="w-full h-full rounded-full bg-surface border-4 border-surface shadow-xl overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start md:items-center gap-4 text-center sm:text-left">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary p-0.5 shrink-0">
+                        <div className="w-full h-full rounded-full flex items-center justify-center bg-surface-light text-primary font-bold text-xl border-4 border-surface shadow-xl overflow-hidden">
                             {/* User Avatar - using standard img tag if avatar url exists or fallback */}
                             {user?.avatar ? (
-                                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover rounded-full" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-surface-light text-primary font-bold text-xl">
-                                    {user?.name?.charAt(0)}
-                                </div>
+                                user?.name?.charAt(0)
                             )}
                         </div>
                     </div>

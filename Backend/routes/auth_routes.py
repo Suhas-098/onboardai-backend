@@ -5,6 +5,7 @@ import datetime
 import bcrypt
 from werkzeug.security import check_password_hash
 from config.db import db
+from models.activity_log import ActivityLog
 
 auth_routes = Blueprint("auth_routes", __name__)
 
@@ -32,6 +33,15 @@ def login():
         # Handle cases where password_hash might be string or bytes
         if check_password_hash(user.password_hash, data["password"]):
             print("Password verified.")
+            
+            try:
+                login_log = ActivityLog(user_id=user.id, action="Logged in")
+                db.session.add(login_log)
+                db.session.commit()
+            except Exception as e:
+                print(f"Error logging activity: {e}")
+                db.session.rollback()
+
             # Generate JWT
             token = jwt.encode({
                 "sub": str(user.id),

@@ -7,96 +7,107 @@ from datetime import datetime
 
 class AlertService:
     @staticmethod
+    def calculate_employee_alerts(user):
+        from models.progress import Progress
+        from models.activity_log import ActivityLog
+        from models.task import Task
+        from datetime import datetime
+        
+        result = {
+            "lowEngagement": False,
+            "missedDeadline": False,
+            "reasons": [],
+            "status": "On Track"
+        }
+        
+        # 1. 100% Complete Check
+        tasks = Task.query.filter_by(assigned_to=user.id).all()
+        user_progress = Progress.query.filter_by(user_id=user.id).all()
+        
+        all_completed = True
+        total_completion = 0
+        if tasks:
+            if not user_progress or len(user_progress) < len(tasks):
+                all_completed = False
+            
+            for p in user_progress:
+                total_completion += (p.completion or 0)
+                if (p.completion or 0) < 100:
+                    all_completed = False
+                    
+            for task in tasks:
+                # A task is conceptually incomplete if it's not marked Done AND progress isn't 100%
+                task_prog = next((p for p in user_progress if p.task_id == task.id), None)
+                prog_val = task_prog.completion if task_prog else 0
+                if task.status.lower() != 'completed' and prog_val < 100:
+                    all_completed = False
+        else:
+            all_completed = False
+            
+        # 2. Missed Deadline Check
+        if not all_completed:
+            overdue_tasks = []
+            for t in tasks:
+                if t.due_date and t.due_date < datetime.now():
+                    task_prog = next((p for p in user_progress if p.task_id == t.id), None)
+                    prog_val = task_prog.completion if task_prog else 0
+                    if t.status.lower() != 'completed' and prog_val < 100:
+                        overdue_tasks.append(t)
+            if len(overdue_tasks) > 0:
+                result["missedDeadline"] = True
+                result["reasons"].append(f"Missed Critical Deadline for: {overdue_tasks[0].title}")
+
+        # 3. Low Engagement Check
+        last_login = ActivityLog.query.filter(
+            ActivityLog.user_id == user.id,
+            ActivityLog.action.ilike("Logged in")
+        ).order_by(ActivityLog.timestamp.desc()).first()
+        
+        reference_time = last_login.timestamp if last_login else user.joined_date
+        if not reference_time:
+            reference_time = datetime.now()
+            
+        hours_inactive = (datetime.now() - reference_time).total_seconds() / 3600
+        if hours_inactive > 24:
+            result["lowEngagement"] = True
+            result["reasons"].append("Low Engagement Detected")
+            
+        # 4. Enforce Precedence Status
+        if result["missedDeadline"]:
+            result["status"] = "Delayed"
+        elif result["lowEngagement"]:
+            result["status"] = "At Risk"
+            
+        return result
+
+    @staticmethod
     def get_all_alerts():
-        """
-        Fetches all active alerts:
-        1. Persisted Alerts from DB (Alert table)
-        2. Dynamic "Missed Deadline" alerts from Tasks table
-        """
         results = []
-
-        # 1. Fetch Persisted Alerts
-        try:
-            db_alerts = Alert.query.order_by(Alert.created_at.desc()).all()
-            for alert in db_alerts:
-                results.append(alert.to_dict())
-        except Exception as e:
-            print(f"Error fetching DB alerts: {e}")
-
-        # 2. Check for Overdue Tasks (Missed Deadlines)
-        try:
-            overdue_tasks = Task.query.filter(
-                Task.status.ilike("Pending"),
-                Task.due_date < datetime.now()
-            ).all()
-
-            for task in overdue_tasks:
-                user = User.query.get(task.assigned_to)
-                
-                # Create a dynamic alert object
-                # Ensure structure matches what frontend expects
+        users = User.query.filter(User.role.ilike("employee")).all()
+        for user in users:
+            alerts = AlertService.calculate_employee_alerts(user)
+            if alerts["missedDeadline"]:
                 results.append({
-                    "id": f"overdue_{task.id}",
-                    "level": "Critical", # Overdue = Critical
+                    "id": f"dl_{user.id}",
+                    "level": "Critical",
                     "type": "Critical",
-                    "title": "Missed Deadline",
-                    "message": f"Employee {user.name if user else 'Unknown'} missed deadline for: {task.title}.",
+                    "title": "Missed Critical Deadline",
+                    "message": alerts["reasons"][0] if alerts["reasons"] else "Missed Critical Deadline",
                     "time": "Overdue",
-                    "target_user_id": task.assigned_to,
+                    "target_user_id": user.id,
                     "created_at": datetime.now().isoformat()
                 })
-        except Exception as e:
-            print(f"Error fetching overdue tasks: {e}")
-
-        # 3. Check for Low Engagement
-        try:
-            from models.progress import Progress
-            from models.activity_log import ActivityLog
-            users = User.query.filter_by(role="employee").all()
-            for user in users:
-                user_tasks = Task.query.filter_by(assigned_to=user.id).all()
-                if not user_tasks:
-                    continue
-                
-                # Check task completion count
-                user_progress = Progress.query.filter_by(user_id=user.id).all()
-                completed_count = sum(1 for p in user_progress if p.completion == 100)
-                
-                # If they completed any task, no low engagement alert
-                if completed_count > 0:
-                    continue
-                    
-                # Calculate task assignment timestamp (using joined_date or ActivityLog)
-                from sqlalchemy import or_
-                assignment_logs = ActivityLog.query.filter(
-                    ActivityLog.user_id == user.id,
-                    or_(
-                        ActivityLog.action.ilike("%Assigned%"),
-                        ActivityLog.action.ilike("%started%")
-                    )
-                ).order_by(ActivityLog.timestamp.desc()).first()
-                
-                assignment_time = assignment_logs.timestamp if assignment_logs else user.joined_date
-                if not assignment_time:
-                    assignment_time = datetime.now()
-                    
-                hours_since_assignment = (datetime.now() - assignment_time).total_seconds() / 3600
-                
-                # Generate dynamic alert if > 24 hours
-                if hours_since_assignment > 24:
-                    results.append({
-                        "id": f"low_eng_{user.id}",
-                        "level": "Warning",
-                        "type": "Warning",
-                        "title": "Low Engagement Detected",
-                        "message": "Low engagement detected",
-                        "time": "Needs Attention",
-                        "target_user_id": user.id,
-                        "created_at": datetime.now().isoformat()
-                    })
-        except Exception as e:
-            print(f"Error calculating low engagement: {e}")
-
+            if alerts["lowEngagement"]:
+                results.append({
+                    "id": f"le_{user.id}",
+                    "level": "Warning",
+                    "type": "Warning",
+                    "title": "Low Engagement Detected",
+                    "message": "Low Engagement Detected",
+                    "time": "Needs Attention",
+                    "target_user_id": user.id,
+                    "created_at": datetime.now().isoformat()
+                })
         return results
 
     @staticmethod
@@ -107,44 +118,17 @@ class AlertService:
         """
         users = User.query.filter(User.role.ilike("employee")).all()
         user_risks = {}
-        
-        # Get all alerts first to avoid N+1 queries ideally, 
-        # but user count is small so filtering in python is fine for now.
-        all_alerts = AlertService.get_all_alerts()
 
         for user in users:
-            status = "On Track"
-            reasons = []
+            alerts = AlertService.calculate_employee_alerts(user)
 
-            # Filter alerts for this user
-            user_alerts = [a for a in all_alerts if a.get('target_user_id') == user.id]
-
-            has_critical = False
-            has_warning = False
-
-            for alert in user_alerts:
-                # Dynamic alerts have 'level', DB alerts have 'type'
-                lvl = alert.get('level') or alert.get('type') or ''
-                lvl = lvl.lower()
-                msg = alert.get('message', '')
-                
-                if lvl in ['critical', 'delayed']:
-                    has_critical = True
-                    reasons.append(msg)
-                elif lvl == 'warning':
-                    has_warning = True
-                    reasons.append(msg)
-
-            # Enforce Precedence: Critical > Warning > On Track
-            if has_critical:
-                status = "Delayed"
-            elif has_warning:
-                status = "At Risk"
-            
             user_risks[user.id] = {
                 "user": user,
-                "status": status,
-                "reasons": reasons
+                "status": alerts["status"],
+                "reasons": alerts["reasons"],
+                "alert_count": len(alerts["reasons"]),
+                "lowEngagement": alerts["lowEngagement"],
+                "missedDeadline": alerts["missedDeadline"]
             }
             
         return user_risks
@@ -162,18 +146,20 @@ class AlertService:
             "on_track": 0,
             "at_risk": 0,
             "delayed": 0,
-            "critical_employees": [], # For Critical Focus & Top Risks
+            "critical_employees": [], # For Critical Focus
+            "high_risk_employees": [], # For High Risk Employees
             "dept_counts": {} # For distribution
         }
         
         # Also calculate global completion average
         total_completion = 0
-        total_users_for_avg = 0 # Only count users who have progress? or all? 
-        # Usually all employees.
+        total_users_for_avg = 0
         
         for uid, data in user_risks.items():
             user = data['user']
             status = data['status']
+            lowEng = data['lowEngagement']
+            missed = data['missedDeadline']
             
             # Risk Counts
             if status == "On Track":
@@ -183,14 +169,26 @@ class AlertService:
             elif status == "Delayed":
                 stats["delayed"] += 1
                 
-            # Critical / Delayed List
-            if status in ["Delayed", "Critical"]: # Catch both just in case
+            # Dashboard: Critical Focus
+            # Should count employees with: Missed Critical Deadlines
+            if missed:
                 stats["critical_employees"].append({
                     "id": user.id,
                     "name": user.name,
                     "department": user.department,
-                    "risk": "Critical", # UI expects "Critical" usually for the red badge
+                    "risk": "Critical",
                     "reason": data['reasons'][0] if data['reasons'] else "Missed Critical Deadline"
+                })
+                
+            # Dashboard: High Risk Employees logic handles Low Engagement OR Missed Deadline
+            if lowEng or missed:
+                reasons_text = ", ".join(data['reasons'])
+                stats["high_risk_employees"].append({
+                    "id": user.id,
+                    "name": user.name,
+                    "department": user.department,
+                    "risk": status,
+                    "reason": reasons_text
                 })
                 
             # Department Counts
@@ -198,8 +196,6 @@ class AlertService:
             stats["dept_counts"][dept] = stats["dept_counts"].get(dept, 0) + 1
             
             # Completion
-            # We need to query progress for this user
-            # To avoid N+1, ideally we'd join, but keeping it simple for now as requested
             user_progress = Progress.query.filter_by(user_id=user.id).all()
             if user_progress:
                 user_avg = sum(p.completion or 0 for p in user_progress) / len(user_progress)

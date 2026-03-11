@@ -8,7 +8,7 @@ from middleware.auth_middleware import token_required
 @risk_routes.route("/risks", methods=["GET"])
 @token_required
 def get_all_risks():
-    """Returns a list of all employees and their risk levels."""
+    """Returns a list of all employees and their risk levels with AI insights."""
     try:
         # Single Source of Truth for Risk Status
         from services.alert_service import AlertService
@@ -86,7 +86,34 @@ def get_all_risks():
                         final_risk_level = 'Warning'
                         final_risk_message = alert_data['reasons'][0] if alert_data['reasons'] else "Warning Alerts Detected"
 
-                results.append({
+                # Generate AI Insights using restored ai_service
+                insight = None
+                try:
+                    from services.ai_service import generate_employee_insight, _fallback_insight
+                    ai_context = {
+                        "user_id": user.id,
+                        "name": user.name,
+                        "department": user.department,
+                        "completion_percentage": round(total_completion, 1),
+                        "tasks_assigned": len(progress_list),
+                        "alert_status": alert_data.get('status', 'Healthy') if alert_data else 'Healthy',
+                        "alert_data_status": alert_data.get('status', 'Healthy') if alert_data else 'Healthy',
+                        "missed_deadlines": "Yes" if final_risk_level == 'Critical' else "No",
+                        "risk_reasons": alert_data.get('reasons', []) if alert_data else []
+                    }
+                    
+                    # Only call Gemini for high-risk employees
+                    if final_risk_level != "Critical" and final_risk_level != "Warning":
+                        print(f"[AI] Skipping Gemini for low-risk user {user.id}")
+                        insight = _fallback_insight(ai_context, "AI skipped for low risk employee")
+                    else:
+                        print(f"[AI] Generating insight for user {user.id}")
+                        insight = generate_employee_insight(ai_context)
+                except Exception as insight_error:
+                    print(f"AI Insight generation error for user {user.id}: {insight_error}")
+                    insight = None
+
+                result_item = {
                     "user_id": user.id,
                     "name": user.name,
                     "role": user.role,
@@ -96,7 +123,20 @@ def get_all_risks():
                     "score": round(total_completion, 1),
                     "prediction": analysis["prediction"],
                     "recommended_actions": analysis["recommended_actions"]
-                })
+                }
+                
+                # Add AI insights if available
+                if insight:
+                    result_item["ai_insight"] = {
+                        "risk_insight": insight.get("risk_insight", ""),
+                        "detected_signals": insight.get("detected_signals", []),
+                        "ai_prediction": insight.get("ai_prediction", ""),
+                        "risk_explanation": insight.get("risk_explanation", ""),
+                        "recommended_actions": insight.get("recommended_actions", []),
+                        "engagement_score": insight.get("engagement_score", 0)
+                    }
+                
+                results.append(result_item)
             except Exception as e:
                 print(f"Error processing user {user.id}: {e}")
                 # Add a fallback/error entry so the loop continues
@@ -142,3 +182,77 @@ def get_prediction_summary():
         "at_risk": stats["at_risk"],
         "delayed": stats["delayed"]
     })
+
+# ============================================
+# AI INSIGHTS ENDPOINTS
+# ============================================
+
+@risk_routes.route("/insights", methods=["GET"])
+@token_required
+def get_all_insights():
+    """
+    Returns cached AI insights for all employees.
+    DOES NOT call Gemini - uses cache only.
+    (The /api/risks endpoint is responsible for calling Gemini)
+    """
+    try:
+        from services.ai_service import get_insight_from_cache, _fallback_insight
+        
+        users = User.query.filter(User.role.ilike("employee") | User.role.ilike("intern")).all()
+        
+        insights = []
+        for user in users:
+            # Fetch from cache only - no Gemini calls here
+            insight_data = get_insight_from_cache(user.id)
+            
+            if insight_data is None:
+                # No cached insight available, use fallback
+                insight_data = _fallback_insight(
+                    {"name": user.name, "alert_data_status": "Unknown"},
+                    "No cached insight available"
+                )
+            
+            insight_data = insight_data.copy() if isinstance(insight_data, dict) else insight_data
+            insight_data["user_id"] = user.id
+            insight_data["name"] = user.name
+            
+            insights.append(insight_data)
+            
+        return jsonify(insights)
+    except Exception as e:
+        print(f"Error retrieving insights: {e}")
+        return jsonify({"error": "Failed to retrieve insights"}), 500
+
+
+@risk_routes.route("/insights/<int:user_id>", methods=["GET"])
+@token_required
+def get_employee_insights(user_id):
+    """
+    Returns cached AI insight for a specific employee.
+    DOES NOT call Gemini - uses cache only.
+    """
+    try:
+        from services.ai_service import get_insight_from_cache, _fallback_insight
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "Employee not found"}), 404
+        
+        # Fetch from cache only - no Gemini calls here
+        insight_data = get_insight_from_cache(user_id)
+        
+        if insight_data is None:
+            # No cached insight available, use fallback
+            insight_data = _fallback_insight(
+                {"name": user.name, "alert_data_status": "Unknown"},
+                "No cached insight available"
+            )
+        
+        insight_data = insight_data.copy() if isinstance(insight_data, dict) else insight_data
+        insight_data["user_id"] = user.id
+        insight_data["name"] = user.name
+        
+        return jsonify(insight_data)
+    except Exception as e:
+        print(f"Error retrieving insight for user {user_id}: {e}")
+        return jsonify({"error": "Failed to retrieve insight"}), 500

@@ -59,7 +59,7 @@ const EmployeeManagement = () => {
         if (!selectedTemplate) return;
         setLoading(true);
         try {
-            await api.templates.assign(selectedEmployee.id, selectedTemplate);
+            await api.post(`/employees/${selectedEmployee.id}/assign-template/${selectedTemplate}`);
             showToast(`Template assigned to ${selectedEmployee.name}`, 'success');
             setIsAssignModalOpen(false);
             fetchEmployees(); // Refresh progress

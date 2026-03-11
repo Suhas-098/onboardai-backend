@@ -8,7 +8,7 @@ from middleware.auth_middleware import token_required
 @risk_routes.route("/risks", methods=["GET"])
 @token_required
 def get_all_risks():
-    """Returns a list of all employees and their risk levels."""
+    """Returns a list of all employees and their risk levels with AI insights."""
     try:
         # Single Source of Truth for Risk Status
         from services.alert_service import AlertService
@@ -86,7 +86,18 @@ def get_all_risks():
                         final_risk_level = 'Warning'
                         final_risk_message = alert_data['reasons'][0] if alert_data['reasons'] else "Warning Alerts Detected"
 
-                results.append({
+                # Generate AI Insights
+                try:
+                    from services.ai_insights_service import AIInsightsService
+                    signals = AIInsightsService.collect_employee_signals(user.id)
+                    insight = None
+                    if signals:
+                        insight = AIInsightsService.generate_insight(signals)
+                except Exception as insight_error:
+                    print(f"AI Insight generation error for user {user.id}: {insight_error}")
+                    insight = None
+
+                result_item = {
                     "user_id": user.id,
                     "name": user.name,
                     "role": user.role,
@@ -96,7 +107,20 @@ def get_all_risks():
                     "score": round(total_completion, 1),
                     "prediction": analysis["prediction"],
                     "recommended_actions": analysis["recommended_actions"]
-                })
+                }
+                
+                # Add AI insights if available
+                if insight:
+                    result_item["ai_insight"] = {
+                        "risk_insight": insight.get("risk_insight", ""),
+                        "detected_signals": insight.get("detected_signals", []),
+                        "ai_prediction": insight.get("ai_prediction", ""),
+                        "recommended_actions": insight.get("recommended_actions", []),
+                        "engagement_score": insight.get("engagement_score", 0),
+                        "completion_rate": insight.get("completion_rate", 0)
+                    }
+                
+                results.append(result_item)
             except Exception as e:
                 print(f"Error processing user {user.id}: {e}")
                 # Add a fallback/error entry so the loop continues
@@ -142,3 +166,44 @@ def get_prediction_summary():
         "at_risk": stats["at_risk"],
         "delayed": stats["delayed"]
     })
+
+# ============================================
+# AI INSIGHTS ENDPOINTS
+# ============================================
+
+@risk_routes.route("/insights", methods=["GET"])
+@token_required
+def get_all_insights():
+    """
+    Returns AI-generated insights for all employees.
+    Uses Gemini AI to analyze employee behavioral data.
+    """
+    try:
+        from services.ai_insights_service import AIInsightsService
+        insights = AIInsightsService.get_all_insights()
+        return jsonify(insights)
+    except Exception as e:
+        print(f"Error generating insights: {e}")
+        return jsonify({"error": "Failed to generate insights"}), 500
+
+
+@risk_routes.route("/insights/<int:user_id>", methods=["GET"])
+@token_required
+def get_employee_insights(user_id):
+    """
+    Returns AI-generated insight for a specific employee.
+    """
+    try:
+        from services.ai_insights_service import AIInsightsService
+        signals = AIInsightsService.collect_employee_signals(user_id)
+        if not signals:
+            return jsonify({"error": "Employee not found"}), 404
+        
+        insight = AIInsightsService.generate_insight(signals)
+        if not insight:
+            return jsonify({"error": "Failed to generate insight"}), 500
+        
+        return jsonify(insight)
+    except Exception as e:
+        print(f"Error generating insight for user {user_id}: {e}")
+        return jsonify({"error": "Failed to generate insight"}), 500

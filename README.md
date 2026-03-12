@@ -18,7 +18,7 @@
 
 Watch the full walkthrough of OnboardAI here:
 
-👉 [Click to Watch the Demo](onboardai-frontend-n685q73t2-suhas-magadums-projects.vercel.app)
+👉 [Click to Watch the Demo](onboardai-frontend-git-main-suhas-magadums-projects.vercel.app)
 
 ## 🔐 Demo Access (Test Credentials)
 
